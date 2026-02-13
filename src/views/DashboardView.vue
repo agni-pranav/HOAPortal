@@ -352,7 +352,6 @@ function resolveVisibilityVariant(visibility) {
 .dashboard-hero {
   border-bottom: 1px solid var(--color-border-default);
   padding-bottom: var(--space-md);
-  margin-bottom: var(--space-xl);
 }
 
 .dashboard-hero h1 {

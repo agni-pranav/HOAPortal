@@ -25,8 +25,10 @@ defineProps({
         <BaseBadge variant="info" size="md">Board Member</BaseBadge>
       </div>
       <div class="topbar__avatar" aria-hidden="true">JS</div>
-      <button type="button" class="topbar__icon-button" aria-label="Logout">
-        <BaseIcon path="M10 17l5-5-5-5M15 12H4M20 4h-5a2 2 0 0 0-2 2" />
+      <button type="button" class="topbar__icon-button topbar__icon-button--logout" aria-label="Logout">
+        <BaseIcon
+          path="M1 1L8 1V2L2 2L2 13H8V14H1L1 1ZM10.8536 4.14645L14.1932 7.48614L10.8674 11.0891L10.1326 10.4109L12.358 8L4 8V7L12.2929 7L10.1464 4.85355L10.8536 4.14645Z"
+        />
       </button>
     </div>
   </header>
@@ -72,10 +74,34 @@ defineProps({
   background: var(--color-bg-hover-subtle);
 }
 
+.topbar__icon-button--logout {
+  width: 2.6rem;
+  height: 2.6rem;
+  background: transparent;
+  margin-top: 0.75rem;
+  margin-left: 0.5rem
+}
+
+.topbar__icon-button--logout:hover {
+  color: var(--color-button-danger-text);
+  background: color-mix(in srgb, var(--color-button-danger-bg) 18%, transparent);
+}
+
+.topbar__icon-button--logout:focus-visible {
+  outline: 2px solid var(--color-button-danger-bg);
+  outline-offset: 2px;
+}
+
 .topbar__icon-button :deep(.icon) {
   width: 1.3rem;
   height: 1.3rem;
   stroke-width: 1.85;
+}
+
+.topbar__icon-button--logout :deep(.icon) {
+  width: 1.75rem;
+  height: 1.75rem;
+  stroke-width: 1.7;
 }
 
 .topbar__profile-wrap {

@@ -6,6 +6,8 @@ import ComingSoonView from './views/ComingSoonView.vue'
 import RolesPermissionsView from './views/RolesPermissionsView.vue'
 import UserManagementView from './views/UserManagementView.vue'
 import MeetingsView from './views/MeetingsView.vue'
+import CalendarView from './views/CalendarView.vue'
+import NewslettersView from './views/NewslettersView.vue'
 import CommitteesView from './views/CommitteesView.vue'
 import { navigationItems } from './mock/navigationData'
 
@@ -28,7 +30,9 @@ function handleNavigate(itemId) {
     @navigate="handleNavigate"
   >
     <DashboardView v-if="activeView === 'dashboard'" />
+    <CalendarView v-else-if="activeView === 'calendar'" />
     <MeetingsView v-else-if="activeView === 'meetings'" />
+    <NewslettersView v-else-if="activeView === 'newsletters'" />
     <CommitteesView v-else-if="activeView === 'committees'" />
     <UserManagementView v-else-if="activeView === 'user-management'" />
     <RolesPermissionsView v-else-if="activeView === 'roles-permissions'" />

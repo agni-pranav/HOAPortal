@@ -43,16 +43,17 @@ const minutesDraft = ref('')
 const decisionsDraft = ref([])
 
 const meetingForm = ref(createBlankMeetingForm())
+const selectedMeetingId = ref(meetings.value[0]?.id || '')
 
 const meetingColumns = [
-  { key: 'title', label: 'Title', width: '24%' },
+  { key: 'title', label: 'Title', width: '26%' },
   { key: 'type', label: 'Type', width: '10%' },
-  { key: 'committeeLabel', label: 'Committee', width: '14%' },
-  { key: 'scheduledLabel', label: 'Scheduled Date', width: '18%' },
+  { key: 'committeeLabel', label: 'Committee', width: '12%' },
+  { key: 'scheduledLabel', label: 'Scheduled Date', width: '20%' },
   { key: 'visibility', label: 'Visibility', width: '10%' },
   { key: 'status', label: 'Status', width: '8%' },
   { key: 'attendeesCount', label: 'Attendees', width: '8%', align: 'right' },
-  { key: 'actions', label: 'Actions', width: '8%', align: 'center' }
+  { key: 'actions', label: 'Actions', width: '6%', align: 'center' }
 ]
 
 const roleNameById = computed(() => {
@@ -89,6 +90,7 @@ const sortedMeetings = computed(() =>
   )
 )
 
+
 const meetingRows = computed(() =>
   sortedMeetings.value.map((meeting) => ({
     ...meeting,
@@ -97,6 +99,10 @@ const meetingRows = computed(() =>
     status: resolveMeetingLifecycleStatus(meeting.scheduledAt),
     attendeesCount: countPresentAttendees(meeting.attendees)
   }))
+)
+
+const selectedMeeting = computed(
+  () => meetings.value.find((meeting) => meeting.id === selectedMeetingId.value) || meetings.value[0] || null
 )
 
 const canSaveMeeting = computed(() => {
@@ -159,6 +165,9 @@ const attendeesRows = computed(() =>
 )
 
 const detailAttendanceSummary = computed(() => getAttendanceSummary(selectedDetailMeeting.value?.attendees || []))
+const selectedAttendanceSummary = computed(() =>
+  getAttendanceSummary(selectedMeeting.value?.attendees || [])
+)
 
 const detailDecisions = computed(() => {
   if (!selectedDetailMeeting.value) {
@@ -249,6 +258,18 @@ function formatMeetingDate(inputDateTime) {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit'
+  }).format(parsed)
+}
+
+function formatMeetingDateShort(inputDateTime) {
+  const parsed = new Date(inputDateTime)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Date pending'
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric'
   }).format(parsed)
 }
 
@@ -748,6 +769,79 @@ function saveMinutesAndDecisions() {
       <BaseButton @click="openCreateMeetingModal">+ Schedule Meeting</BaseButton>
     </header>
 
+    <BaseCard title="Meeting Workflow" subtitle="Create, capture attendance, and record minutes.">
+      <div class="meeting-workflow">
+        <label class="meeting-workflow__field">
+          <span>Active meeting</span>
+          <select v-model="selectedMeetingId">
+            <option v-for="meeting in sortedMeetings" :key="meeting.id" :value="meeting.id">
+              {{ meeting.title }} · {{ formatMeetingDateShort(meeting.scheduledAt) }}
+            </option>
+          </select>
+        </label>
+
+        <div class="meeting-workflow__steps">
+          <article class="meeting-workflow__step">
+            <div>
+              <small>Step 1</small>
+              <h4>Schedule meeting</h4>
+              <p>Create board or committee sessions with locations and links.</p>
+            </div>
+            <BaseButton size="sm" @click="openCreateMeetingModal">Create</BaseButton>
+          </article>
+
+          <article class="meeting-workflow__step">
+            <div>
+              <small>Step 2</small>
+              <h4>Capture attendees</h4>
+              <p>Track attendance and quorum in real time.</p>
+            </div>
+            <BaseButton
+              size="sm"
+              variant="secondary"
+              :disabled="!selectedMeeting"
+              @click="openAttendeesModal(selectedMeeting)"
+            >
+              Manage
+            </BaseButton>
+          </article>
+
+          <article class="meeting-workflow__step">
+            <div>
+              <small>Step 3</small>
+              <h4>Minutes & summary</h4>
+              <p>Record decisions, votes, and action items.</p>
+            </div>
+            <BaseButton
+              size="sm"
+              variant="ghost"
+              :disabled="!selectedMeeting"
+              @click="openMinutesModal(selectedMeeting)"
+            >
+              Add Notes
+            </BaseButton>
+          </article>
+        </div>
+
+        <div v-if="selectedMeeting" class="meeting-workflow__snapshot">
+          <h5>Meeting snapshot</h5>
+          <p>{{ selectedMeeting.title }}</p>
+          <div class="meeting-workflow__meta">
+            <BaseBadge size="sm" variant="neutral">{{ resolveMeetingTypeLabel(selectedMeeting.type) }}</BaseBadge>
+            <BaseBadge size="sm" variant="neutral">{{ resolveVisibilityLabel(selectedMeeting.visibility) }}</BaseBadge>
+            <BaseBadge size="sm" :variant="resolveMeetingLifecycleVariant(resolveMeetingLifecycleStatus(selectedMeeting.scheduledAt))">
+              {{ resolveMeetingLifecycleStatus(selectedMeeting.scheduledAt) }}
+            </BaseBadge>
+          </div>
+          <div class="meeting-workflow__attendance">
+            <BaseBadge variant="success">Present: {{ selectedAttendanceSummary.present }}</BaseBadge>
+            <BaseBadge variant="danger">Absent: {{ selectedAttendanceSummary.absent }}</BaseBadge>
+            <BaseBadge variant="neutral">Total: {{ selectedAttendanceSummary.total }}</BaseBadge>
+          </div>
+        </div>
+      </div>
+    </BaseCard>
+
     <BaseCard>
       <BaseTable :columns="meetingColumns" :rows="meetingRows">
         <template #cell-title="{ value }">
@@ -1223,6 +1317,24 @@ function saveMinutesAndDecisions() {
   text-overflow: ellipsis;
 }
 
+:deep(.base-table) {
+  width: 100%;
+  min-width: 860px;
+}
+
+:deep(.base-table__header),
+:deep(.base-table__row) {
+  padding: calc(var(--space-sm) * 1.2) var(--space-md);
+}
+
+.meetings-view :deep(.base-table__row) {
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.meetings-view :deep(.base-table__row:last-child) {
+  border-bottom: none;
+}
+
 .meetings-view__badge {
   white-space: nowrap;
 }
@@ -1233,6 +1345,7 @@ function saveMinutesAndDecisions() {
   justify-content: center;
   width: 100%;
 }
+
 
 .meeting-form {
   display: flex;
@@ -1288,6 +1401,102 @@ function saveMinutesAndDecisions() {
 .meeting-form__toggle-row small {
   color: var(--color-text-secondary);
   font-size: 0.78rem;
+}
+
+.meeting-workflow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.meeting-workflow__field {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-xs) * 0.8);
+}
+
+.meeting-workflow__field span {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.meeting-workflow__field select {
+  border: 1px solid var(--color-border-default);
+  border-radius: 0.65rem;
+  padding: calc(var(--space-sm) * 1.1) calc(var(--space-sm) * 1.4);
+  font: inherit;
+  font-size: 0.84rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-panel);
+  outline: none;
+}
+
+.meeting-workflow__field select:focus {
+  border-color: var(--color-input-focus-border);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.meeting-workflow__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.meeting-workflow__step {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.meeting-workflow__step h4 {
+  margin: calc(var(--space-xs) * 0.6) 0;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.meeting-workflow__step p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.meeting-workflow__step small {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.meeting-workflow__snapshot {
+  border-top: 1px solid var(--color-border-default);
+  padding-top: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.meeting-workflow__snapshot h5 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.meeting-workflow__snapshot p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.meeting-workflow__meta,
+.meeting-workflow__attendance {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
 }
 
 .meeting-detail {
@@ -1639,6 +1848,7 @@ function saveMinutesAndDecisions() {
     align-items: stretch;
   }
 
+
   .meeting-detail__grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1677,6 +1887,15 @@ function saveMinutesAndDecisions() {
 
   .decision-votes {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meeting-workflow__steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .meeting-workflow__step {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>
