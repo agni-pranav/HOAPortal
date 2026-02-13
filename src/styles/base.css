@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-bg-canvas: #f1f3f6;
+  --color-bg-panel: #ffffff;
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+  --color-border-default: #dce1e8;
+  --color-accent: #2f5fe8;
+  --color-accent-soft: #e8efff;
+  --color-success: #22c55e;
+  --color-warning: #f97316;
+  --color-danger: #ee3d3d;
+  --color-icon-muted: #9ca3af;
+
+  --color-accent-strong: #254fca;
+  --color-bg-sidebar: #f6f7f9;
+  --color-bg-hover-soft: #edf1f6;
+  --color-bg-hover-subtle: #f3f4f6;
+  --color-bg-action-hover: #f8fafc;
+  --color-bg-action-selected: #f2f6ff;
+  --color-border-strong: #d8dde5;
+  --color-border-action: #d4d9e1;
+  --color-border-action-hover: #bbc5d2;
+  --color-border-action-selected: #8ca6f4;
+  --color-text-nav: #4b5565;
+  --color-text-nav-hover: #2f3c4f;
+  --color-text-emphasis: #0f1117;
+  --color-text-action: #1b2029;
+  --color-text-action-icon: #202633;
+  --color-text-on-accent: #ffffff;
+  --color-focus-ring: rgba(47, 95, 232, 0.13);
+  --color-overlay-scrim: rgba(17, 24, 39, 0.44);
+
+  --color-badge-neutral-bg: #eef2f7;
+  --color-badge-neutral-text: #4b5563;
+  --color-badge-info-bg: #dbe8ff;
+  --color-badge-info-text: #2f5fe8;
+  --color-badge-success-bg: #e8f7ed;
+  --color-badge-success-text: #17663e;
+  --color-badge-warning-bg: #fff5df;
+  --color-badge-warning-text: #8a5b04;
+  --color-badge-danger-bg: #feeaea;
+  --color-badge-danger-text: #9a2828;
+
+  --color-button-secondary-bg: #ebf1fa;
+  --color-button-secondary-bg-hover: #dbe7f8;
+  --color-button-ghost-bg-hover: #f7f9fb;
+  --color-button-danger-bg: #fce8e8;
+  --color-button-danger-bg-hover: #f9d5d5;
+  --color-button-danger-text: #991b1b;
+  --color-toggle-bg: #d4dae3;
+  --color-toggle-bg-on: #6ea1db;
+  --color-input-focus-border: #93b4df;
+
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  --radius-sm: 0.62rem;
+  --radius-md: 0.7rem;
+  --radius-lg: 0.82rem;
+  --radius-xl: 1rem;
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.02);
+  --shadow-card-hover: 0 10px 20px rgba(15, 23, 42, 0.05);
+  --shadow-modal: 0 22px 35px rgba(15, 23, 42, 0.2);
+  --sidebar-width: 18.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  color: var(--color-text-primary);
+  background: var(--color-bg-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
