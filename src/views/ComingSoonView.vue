@@ -1,5 +1,4 @@
 <script setup>
-import BaseButton from '../components/ui/BaseButton.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
 
 defineProps({
@@ -18,7 +17,7 @@ defineProps({
       This area is intentionally left as a visual placeholder in phase 1. We can now implement
       the full flow for {{ sectionName.toLowerCase() }} in the next phase.
     </p>
-    <BaseButton variant="secondary">Design Approved</BaseButton>
+    <span class="coming-soon__status">Coming soon</span>
   </BaseCard>
 </template>
 
@@ -47,7 +46,16 @@ defineProps({
   font-size: 0.85rem;
 }
 
-.coming-soon :deep(button) {
+.coming-soon__status {
   margin-top: var(--space-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--space-sm) * 0.5) var(--space-md);
+  border-radius: 999px;
+  background: var(--color-badge-neutral-bg);
+  color: var(--color-badge-neutral-text);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 </style>

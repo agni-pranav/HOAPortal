@@ -52,8 +52,8 @@ const meetingColumns = [
   { key: 'scheduledLabel', label: 'Scheduled Date', width: '20%' },
   { key: 'visibility', label: 'Visibility', width: '10%' },
   { key: 'status', label: 'Status', width: '8%' },
-  { key: 'attendeesCount', label: 'Attendees', width: '8%', align: 'right' },
-  { key: 'actions', label: 'Actions', width: '6%', align: 'center' }
+  { key: 'attendeesCount', label: 'Attendees', width: '96px', align: 'right' },
+  { key: 'actions', label: 'Actions', width: '88px', align: 'center' }
 ]
 
 const roleNameById = computed(() => {

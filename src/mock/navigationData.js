@@ -5,14 +5,14 @@ export const navigationItems = [
     icon: 'M3 11.6 12 4l9 7.6V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'
   },
   {
-    id: 'calendar',
-    label: 'Calendar',
-    icon: 'M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2'
-  },
-  {
     id: 'meetings',
     label: 'Meetings',
     icon: 'M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2M8 13h8'
+  },
+  {
+    id: 'calendar',
+    label: 'Calendar',
+    icon: 'M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2'
   },
   {
     id: 'motions',

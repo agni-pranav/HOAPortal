@@ -1,7 +1,13 @@
 <script setup>
+import { ref } from 'vue'
 import BaseBadge from '../components/ui/BaseBadge.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
+
+const newsletterUploadInput = ref(null)
+const documentUploadInput = ref(null)
+const newsletterDraftFiles = ref([])
+const documentDraftFiles = ref([])
 
 const newsletterFolders = [
   {
@@ -49,6 +55,36 @@ const recentDocuments = [
     meta: 'Uploaded Feb 3, 2026 · 410 KB'
   }
 ]
+
+function openNewsletterPicker() {
+  newsletterUploadInput.value?.click()
+}
+
+function openDocumentPicker() {
+  documentUploadInput.value?.click()
+}
+
+function handleNewsletterFiles(event) {
+  const files = Array.from(event.target.files || [])
+  newsletterDraftFiles.value = files
+}
+
+function handleDocumentFiles(event) {
+  const files = Array.from(event.target.files || [])
+  documentDraftFiles.value = files
+}
+
+function handleDropNewsletter(event) {
+  event.preventDefault()
+  const files = Array.from(event.dataTransfer?.files || [])
+  newsletterDraftFiles.value = files
+}
+
+function handleDropDocument(event) {
+  event.preventDefault()
+  const files = Array.from(event.dataTransfer?.files || [])
+  documentDraftFiles.value = files
+}
 </script>
 
 <template>
@@ -59,20 +95,42 @@ const recentDocuments = [
         <p>Organize monthly newsletters and distribute community documents.</p>
       </div>
       <div class="newsletters-view__actions">
-        <BaseButton variant="secondary">Upload Newsletter</BaseButton>
-        <BaseButton>Upload Document</BaseButton>
+        <BaseButton variant="secondary" @click="openNewsletterPicker">
+          Upload Newsletter
+        </BaseButton>
+        <BaseButton @click="openDocumentPicker">Upload Document</BaseButton>
       </div>
     </header>
 
     <div class="newsletters-view__grid">
       <div class="newsletters-view__main">
         <BaseCard title="Newsletter Uploads" subtitle="Drag and drop files to add a new issue.">
-          <div class="upload-placeholder">
+          <div
+            class="upload-placeholder"
+            @dragover.prevent
+            @drop="handleDropNewsletter"
+          >
             <div>
               <h3>Drop newsletter files here</h3>
               <p>PDF or DOCX · Max 20MB</p>
             </div>
-            <BaseButton variant="ghost">Select Files</BaseButton>
+            <BaseButton variant="ghost" @click="openNewsletterPicker">
+              Select Files
+            </BaseButton>
+            <input
+              ref="newsletterUploadInput"
+              class="upload-input"
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx"
+              @change="handleNewsletterFiles"
+            />
+          </div>
+          <div v-if="newsletterDraftFiles.length" class="upload-selected">
+            <p>Selected files</p>
+            <ul>
+              <li v-for="file in newsletterDraftFiles" :key="file.name">{{ file.name }}</li>
+            </ul>
           </div>
         </BaseCard>
 
@@ -96,12 +154,32 @@ const recentDocuments = [
 
       <div class="newsletters-view__side">
         <BaseCard title="Document Uploads" subtitle="Post policies, minutes, and HOA forms.">
-          <div class="upload-placeholder upload-placeholder--compact">
+          <div
+            class="upload-placeholder upload-placeholder--compact"
+            @dragover.prevent
+            @drop="handleDropDocument"
+          >
             <div>
               <h3>Upload a document</h3>
               <p>PDF, XLSX, or DOCX · Max 25MB</p>
             </div>
-            <BaseButton variant="secondary">Browse Library</BaseButton>
+            <BaseButton variant="secondary" @click="openDocumentPicker">
+              Browse Library
+            </BaseButton>
+            <input
+              ref="documentUploadInput"
+              class="upload-input"
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xlsx"
+              @change="handleDocumentFiles"
+            />
+          </div>
+          <div v-if="documentDraftFiles.length" class="upload-selected">
+            <p>Selected files</p>
+            <ul>
+              <li v-for="file in documentDraftFiles" :key="file.name">{{ file.name }}</li>
+            </ul>
           </div>
         </BaseCard>
 
@@ -191,6 +269,36 @@ const recentDocuments = [
   margin: var(--space-xs) 0 0;
   color: var(--color-text-secondary);
   font-size: 0.8rem;
+}
+
+.upload-input {
+  display: none;
+}
+
+.upload-selected {
+  margin-top: var(--space-sm);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  background: var(--color-bg-panel);
+}
+
+.upload-selected p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.upload-selected ul {
+  margin: var(--space-xs) 0 0;
+  padding-left: 1.05rem;
+  color: var(--color-text-primary);
+  font-size: 0.82rem;
+}
+
+.upload-selected li + li {
+  margin-top: calc(var(--space-xs) * 0.7);
 }
 
 .folder-list {
@@ -288,4 +396,3 @@ const recentDocuments = [
   }
 }
 </style>
-

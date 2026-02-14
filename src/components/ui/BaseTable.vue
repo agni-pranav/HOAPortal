@@ -69,6 +69,9 @@ defineProps({
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table td {
