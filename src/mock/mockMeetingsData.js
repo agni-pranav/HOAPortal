@@ -2,6 +2,7 @@ export const meetingTypeOptions = ['board', 'committee']
 export const meetingVisibilityOptions = ['public', 'board']
 export const attendeeStatusOptions = ['present', 'absent']
 export const voteValueOptions = ['yes', 'no', 'abstain']
+export const meetingModeOptions = ['onsite', 'virtual', 'hybrid']
 
 const DEFAULT_SCHEDULED_AT = '2026-02-25T18:00:00.000Z'
 const DEFAULT_CREATED_AT = '2026-02-01T16:00:00.000Z'
@@ -12,9 +13,11 @@ const seededMeetings = [
     id: 'b0d269ee-17cb-4789-b50d-804f81389ac4',
     title: 'February Board Governance Session',
     type: 'board',
+    meetingTypeId: 'meeting-board',
     committeeId: null,
     scheduledAt: '2026-02-20T23:00:00.000Z',
     location: 'Clubhouse Board Room',
+    mode: 'onsite',
     isVirtual: false,
     visibility: 'board',
     attendees: [
@@ -44,9 +47,11 @@ const seededMeetings = [
     id: 'a4af250c-ea7e-4c26-9988-7802a7c88044',
     title: 'Finance Committee Forecast Review',
     type: 'committee',
+    meetingTypeId: 'meeting-committee',
     committeeId: 'finance',
     scheduledAt: '2026-03-05T00:30:00.000Z',
     location: 'Virtual (Zoom)',
+    mode: 'virtual',
     isVirtual: true,
     visibility: 'board',
     attendees: [
@@ -73,9 +78,11 @@ const seededMeetings = [
     id: '40f178a0-9b2b-46c7-96a0-b95b84b5a9de',
     title: 'Events Committee Spring Kickoff',
     type: 'committee',
+    meetingTypeId: 'meeting-committee',
     committeeId: 'events',
     scheduledAt: '2026-03-10T23:30:00.000Z',
     location: 'Community Clubhouse',
+    mode: 'onsite',
     isVirtual: false,
     visibility: 'public',
     attendees: [
@@ -92,9 +99,11 @@ const seededMeetings = [
     id: '6bc3f56f-00f2-4bbb-a56f-cd763a57d1d7',
     title: 'Compliance Review and Policy Escalations',
     type: 'committee',
+    meetingTypeId: 'meeting-committee',
     committeeId: 'compliance',
     scheduledAt: '2026-03-14T15:00:00.000Z',
     location: 'Operations Office',
+    mode: 'onsite',
     isVirtual: false,
     visibility: 'board',
     attendees: [
@@ -190,6 +199,17 @@ export function normalizeMeeting(inputMeeting = {}) {
   const normalizedVisibility = meetingVisibilityOptions.includes(inputMeeting.visibility)
     ? inputMeeting.visibility
     : 'board'
+  const normalizedMode = meetingModeOptions.includes(inputMeeting.mode)
+    ? inputMeeting.mode
+    : inputMeeting.isVirtual
+      ? 'virtual'
+      : 'onsite'
+  const normalizedMeetingTypeId =
+    typeof inputMeeting.meetingTypeId === 'string' && inputMeeting.meetingTypeId
+      ? inputMeeting.meetingTypeId
+      : normalizedType === 'committee'
+        ? 'meeting-committee'
+        : 'meeting-board'
 
   const normalizedCommitteeId =
     normalizedType === 'committee' && typeof inputMeeting.committeeId === 'string' && inputMeeting.committeeId
@@ -200,10 +220,12 @@ export function normalizeMeeting(inputMeeting = {}) {
     id: typeof inputMeeting.id === 'string' ? inputMeeting.id : '',
     title: typeof inputMeeting.title === 'string' ? inputMeeting.title.trim() : '',
     type: normalizedType,
+    meetingTypeId: normalizedMeetingTypeId,
     committeeId: normalizedCommitteeId,
     scheduledAt: normalizeDateTime(inputMeeting.scheduledAt, DEFAULT_SCHEDULED_AT),
     location: typeof inputMeeting.location === 'string' ? inputMeeting.location.trim() : '',
-    isVirtual: Boolean(inputMeeting.isVirtual),
+    mode: normalizedMode,
+    isVirtual: normalizedMode !== 'onsite',
     visibility: normalizedVisibility,
     attendees: normalizeAttendees(inputMeeting.attendees),
     minutes: typeof inputMeeting.minutes === 'string' ? inputMeeting.minutes.trim() : '',

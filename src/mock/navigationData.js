@@ -22,11 +22,13 @@ export const navigationItems = [
   {
     id: 'vendors',
     label: 'Vendors',
+    disabled: true,
     icon: 'M4 20h16M6 20V8l6-4 6 4v12M9 12h6M9 16h6'
   },
   {
     id: 'drb-submissions',
     label: 'DRB Submissions',
+    disabled: true,
     icon: 'M8 3h8M8 3a2 2 0 0 0-2 2v1H5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-1V5a2 2 0 0 0-2-2M9 12h6M9 16h6'
   },
   {
@@ -37,6 +39,7 @@ export const navigationItems = [
   {
     id: 'projects',
     label: 'Projects',
+    disabled: true,
     icon: 'M3 7h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'
   },
   {
@@ -47,11 +50,13 @@ export const navigationItems = [
   {
     id: 'documents',
     label: 'Documents',
+    disabled: true,
     icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 13h6'
   },
   {
     id: 'complaints-requests',
     label: 'Complaints/Requests',
+    disabled: true,
     icon: 'M21 14a2 2 0 0 1-2 2H8l-5 4V6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'
   },
   {
@@ -65,8 +70,42 @@ export const navigationItems = [
     icon: 'M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'
   },
   {
+    id: 'metadata',
+    label: 'Metadata Setup',
+    icon: 'M4 4h16v16H4zM8 8h8M8 12h8M8 16h6'
+  },
+  {
     id: 'settings',
     label: 'Settings',
+    disabled: true,
     icon: 'M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6Zm7.4 6a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'
+  }
+]
+
+export const platformNavigationItems = [
+  {
+    id: 'platform-communities',
+    label: 'Communities',
+    icon: 'M3 7h7l2 2h9v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'
+  },
+  {
+    id: 'platform-settings',
+    label: 'Platform Settings',
+    icon: 'M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6Zm7.4 6a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'
+  },
+  {
+    id: 'platform-audit',
+    label: 'Audit Logs',
+    icon: 'M4 3h16v18H4zM8 7h8M8 11h8M8 15h6'
+  },
+  {
+    id: 'platform-billing',
+    label: 'Billing / Subscription',
+    icon: 'M4 4h16v16H4zM8 12h8M8 8h8'
+  },
+  {
+    id: 'platform-logout',
+    label: 'Logout',
+    icon: 'M3 3h9v2H5v14h7v2H3zM14 12l5-4v3h5v2h-5v3z'
   }
 ]

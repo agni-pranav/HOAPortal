@@ -1,87 +1,73 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import BaseBadge from '../components/ui/BaseBadge.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
+import { useTenantStore } from '../state/tenantStore'
+import { usePermission } from '../composables/usePermission'
 
 const newsletterUploadInput = ref(null)
 const documentUploadInput = ref(null)
 const newsletterDraftFiles = ref([])
 const documentDraftFiles = ref([])
+const { currentCommunityData } = useTenantStore()
+const { canPerform } = usePermission()
 
-const newsletterFolders = [
-  {
-    id: 'feb-2026',
-    name: 'February 2026',
-    description: 'Annual meeting recap, reserve study highlights, and vendor updates.',
-    documents: [
-      'February 2026 Community Newsletter.pdf',
-      'Reserve Study Summary - Feb 2026.pdf',
-      'Vendor Timeline Snapshot.xlsx'
-    ]
-  },
-  {
-    id: 'jan-2026',
-    name: 'January 2026',
-    description: 'Budget kickoff, committee rosters, and community events calendar.',
-    documents: [
-      'January 2026 Community Newsletter.pdf',
-      'Committee Directory - Jan 2026.pdf',
-      'Events Calendar - Q1 2026.pdf'
-    ]
-  },
-  {
-    id: 'dec-2025',
-    name: 'December 2025',
-    description: 'Year-end wrap-up and holiday community highlights.',
-    documents: ['December 2025 Newsletter.pdf', 'Year-End Financial Snapshot.pdf']
-  }
-]
+const newsletterFolders = computed(() => currentCommunityData.value?.newsletterFolders || [])
+const recentDocuments = computed(() => currentCommunityData.value?.recentDocuments || [])
 
-const recentDocuments = [
-  {
-    id: 'doc-1',
-    name: 'Board Summary - February 2026.pdf',
-    meta: 'Uploaded Feb 12, 2026 · 1.8 MB'
-  },
-  {
-    id: 'doc-2',
-    name: 'Maintenance Plan Overview.docx',
-    meta: 'Uploaded Feb 9, 2026 · 830 KB'
-  },
-  {
-    id: 'doc-3',
-    name: 'Committee Action Items.xlsx',
-    meta: 'Uploaded Feb 3, 2026 · 410 KB'
-  }
-]
+const canManageNewsletters = computed(
+  () => canPerform('communications', 'create') || canPerform('communications', 'publish')
+)
 
 function openNewsletterPicker() {
+  if (!canManageNewsletters.value) {
+    return
+  }
+
   newsletterUploadInput.value?.click()
 }
 
 function openDocumentPicker() {
+  if (!canManageNewsletters.value) {
+    return
+  }
+
   documentUploadInput.value?.click()
 }
 
 function handleNewsletterFiles(event) {
+  if (!canManageNewsletters.value) {
+    return
+  }
+
   const files = Array.from(event.target.files || [])
   newsletterDraftFiles.value = files
 }
 
 function handleDocumentFiles(event) {
+  if (!canManageNewsletters.value) {
+    return
+  }
+
   const files = Array.from(event.target.files || [])
   documentDraftFiles.value = files
 }
 
 function handleDropNewsletter(event) {
   event.preventDefault()
+  if (!canManageNewsletters.value) {
+    return
+  }
   const files = Array.from(event.dataTransfer?.files || [])
   newsletterDraftFiles.value = files
 }
 
 function handleDropDocument(event) {
   event.preventDefault()
+  if (!canManageNewsletters.value) {
+    return
+  }
   const files = Array.from(event.dataTransfer?.files || [])
   documentDraftFiles.value = files
 }
@@ -95,10 +81,12 @@ function handleDropDocument(event) {
         <p>Organize monthly newsletters and distribute community documents.</p>
       </div>
       <div class="newsletters-view__actions">
-        <BaseButton variant="secondary" @click="openNewsletterPicker">
+        <BaseButton variant="secondary" :disabled="!canManageNewsletters" @click="openNewsletterPicker">
           Upload Newsletter
         </BaseButton>
-        <BaseButton @click="openDocumentPicker">Upload Document</BaseButton>
+        <BaseButton :disabled="!canManageNewsletters" @click="openDocumentPicker">
+          Upload Document
+        </BaseButton>
       </div>
     </header>
 
@@ -114,7 +102,7 @@ function handleDropDocument(event) {
               <h3>Drop newsletter files here</h3>
               <p>PDF or DOCX · Max 20MB</p>
             </div>
-            <BaseButton variant="ghost" @click="openNewsletterPicker">
+            <BaseButton variant="ghost" :disabled="!canManageNewsletters" @click="openNewsletterPicker">
               Select Files
             </BaseButton>
             <input
@@ -123,6 +111,7 @@ function handleDropDocument(event) {
               type="file"
               multiple
               accept=".pdf,.doc,.docx"
+              :disabled="!canManageNewsletters"
               @change="handleNewsletterFiles"
             />
           </div>
@@ -163,7 +152,7 @@ function handleDropDocument(event) {
               <h3>Upload a document</h3>
               <p>PDF, XLSX, or DOCX · Max 25MB</p>
             </div>
-            <BaseButton variant="secondary" @click="openDocumentPicker">
+            <BaseButton variant="secondary" :disabled="!canManageNewsletters" @click="openDocumentPicker">
               Browse Library
             </BaseButton>
             <input
@@ -172,6 +161,7 @@ function handleDropDocument(event) {
               type="file"
               multiple
               accept=".pdf,.doc,.docx,.xlsx"
+              :disabled="!canManageNewsletters"
               @change="handleDocumentFiles"
             />
           </div>

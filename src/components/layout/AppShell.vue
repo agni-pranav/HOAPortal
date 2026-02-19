@@ -17,7 +17,7 @@ defineProps({
   }
 })
 
-defineEmits(['navigate'])
+defineEmits(['navigate', 'coming-soon'])
 </script>
 
 <template>
@@ -26,6 +26,7 @@ defineEmits(['navigate'])
       :navigation-items="navigationItems"
       :active-view="activeView"
       @navigate="$emit('navigate', $event)"
+      @coming-soon="$emit('coming-soon', $event)"
     />
     <div class="app-main">
       <AppTopbar :title="activeTitle" />

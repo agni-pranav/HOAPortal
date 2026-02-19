@@ -8,6 +8,9 @@
   --color-border-default: #dce1e8;
   --color-accent: #2f5fe8;
   --color-accent-soft: #e8efff;
+  --color-platform-accent: #4b2ea8;
+  --color-platform-accent-soft: #eee8fb;
+  --color-platform-accent-strong: #3b2387;
   --color-success: #22c55e;
   --color-warning: #f97316;
   --color-danger: #ee3d3d;

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import BaseBadge from '../components/ui/BaseBadge.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
@@ -8,27 +8,34 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import RowActionMenu from '../components/ui/RowActionMenu.vue'
 import BaseTable from '../components/ui/BaseTable.vue'
 import BaseToggle from '../components/ui/BaseToggle.vue'
-import { committees } from '../mock/committeesData'
 import {
   createDefaultPermissions,
-  createInitialRoles,
   createScopedPermissions,
   normalizePermissions,
   permissionActions,
   permissionModules,
-  roleScopeOptions
+  baseRoleTypeOptions
 } from '../mock/rolesData'
+import { useTenantStore } from '../state/tenantStore'
 
-const roles = ref(createInitialRoles())
+const { currentCommunityData, isCommunityAdmin } = useTenantStore()
+
+const communityData = computed(() => currentCommunityData.value)
+const roles = computed(() => communityData.value?.roles || [])
+const committees = computed(() => communityData.value?.committees || [])
+
+const canManageRoles = computed(() => isCommunityAdmin.value)
 
 const isRoleModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
 const isPermissionsModalOpen = ref(false)
 const isCommitteeOverrideModalOpen = ref(false)
+const isHistoryModalOpen = ref(false)
 
 const mode = ref('create')
 const editingRoleId = ref('')
 const rolePendingDelete = ref(null)
+const historyRole = ref(null)
 
 const permissionsRoleId = ref('')
 const permissionsRoleName = ref('')
@@ -37,9 +44,34 @@ const permissionsDraft = ref(normalizePermissions())
 const roleForm = ref({
   name: '',
   description: '',
-  scope: roleScopeOptions[0]
+  baseRoleType: baseRoleTypeOptions[0]
 })
 const selectedSummaryRoleId = ref(roles.value[0]?.id || '')
+const roleFormError = ref('')
+
+const restrictedRoleNames = [
+  'president',
+  'vice president',
+  'treasurer',
+  'secretary',
+  'member-at-large',
+  'member at large'
+]
+
+const editingRole = computed(() => roles.value.find((role) => role.id === editingRoleId.value) || null)
+const isEditingSystemRole = computed(
+  () => mode.value === 'edit' && Boolean(editingRole.value?.isSystem)
+)
+
+watch(
+  roles,
+  (nextRoles) => {
+    if (!nextRoles.find((role) => role.id === selectedSummaryRoleId.value)) {
+      selectedSummaryRoleId.value = nextRoles[0]?.id || ''
+    }
+  },
+  { immediate: true }
+)
 
 const moduleActionsByKey = permissionModules.reduce((accumulator, module) => {
   accumulator[module.key] = new Set(module.actions)
@@ -47,17 +79,22 @@ const moduleActionsByKey = permissionModules.reduce((accumulator, module) => {
 }, {})
 
 const tableColumns = [
-  { key: 'name', label: 'Role Name', width: '18%' },
-  { key: 'description', label: 'Description', width: '27%' },
-  { key: 'scope', label: 'Scope', width: '12%' },
-  { key: 'memberCount', label: 'Members Assigned', width: '13%', align: 'right' },
+  { key: 'name', label: 'Role Name', width: '20%' },
+  { key: 'description', label: 'Description', width: '28%' },
+  { key: 'baseRoleType', label: 'Base Role Type', width: '14%' },
+  { key: 'memberCount', label: 'Members Assigned', width: '12%', align: 'right' },
   { key: 'updatedAt', label: 'Last Modified', width: '12%' },
-  { key: 'actions', label: 'Actions', width: '10%', align: 'center' }
+  { key: 'actions', label: 'Actions', width: '8%', align: 'center' }
 ]
 const effectiveSummaryColumns = [
   { key: 'module', label: 'Module', width: '48%' },
   { key: 'allowed', label: 'Allowed Actions', width: '26%' },
   { key: 'status', label: 'Access Status', width: '26%' }
+]
+const historyColumns = [
+  { key: 'changedAt', label: 'Changed At', width: '20%' },
+  { key: 'changedBy', label: 'Changed By', width: '22%' },
+  { key: 'changeSummary', label: 'Change Summary', width: '58%' }
 ]
 
 const sortedRoles = computed(() =>
@@ -67,6 +104,10 @@ const sortedRoles = computed(() =>
 const roleModalTitle = computed(() => (mode.value === 'edit' ? 'Edit Role' : 'Create Role'))
 
 const permissionsModalTitle = computed(() => `Manage Permissions — ${permissionsRoleName.value}`)
+
+const historyModalTitle = computed(() =>
+  historyRole.value ? `Role History — ${historyRole.value.name}` : 'Role History'
+)
 
 const canSaveRole = computed(() => roleForm.value.name.trim().length > 0)
 const selectedSummaryRole = computed(() => {
@@ -95,10 +136,17 @@ const effectiveSummaryRows = computed(() => {
     }
   })
 })
+const historyRows = computed(() => {
+  const history = historyRole.value?.history || []
+  return history.map((entry, index) => ({
+    id: `${historyRole.value?.id || 'role'}-${index}`,
+    ...entry
+  }))
+})
 
 const committeeMap = computed(() => {
   const mapped = {}
-  committees.forEach((committee) => {
+  committees.value.forEach((committee) => {
     mapped[committee.id] = committee
   })
   return mapped
@@ -119,11 +167,69 @@ const scopedOverrideCommittees = computed(() =>
 )
 
 const availableCommitteeOptions = computed(() =>
-  committees.filter((committee) => !Object.prototype.hasOwnProperty.call(permissionsDraft.value.scoped, committee.id))
+  committees.value.filter(
+    (committee) => !Object.prototype.hasOwnProperty.call(permissionsDraft.value.scoped, committee.id)
+  )
 )
 
 function getTodayDate() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function normalizeRoleName(value) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+}
+
+function isRestrictedRoleName(value) {
+  if (!value) {
+    return false
+  }
+
+  return restrictedRoleNames.includes(normalizeRoleName(value))
+}
+
+function resolveBaseRoleType(role) {
+  if (!role) {
+    return baseRoleTypeOptions[0]
+  }
+
+  if (role.baseRoleType) {
+    return role.baseRoleType
+  }
+
+  if (role.scope === 'Homeowner') {
+    return 'Member'
+  }
+
+  if (role.scope === 'Board') {
+    return 'Board'
+  }
+
+  if (role.name?.toLowerCase().includes('member')) {
+    return 'Member'
+  }
+
+  return baseRoleTypeOptions[0]
+}
+
+function buildHistoryEntry(changeSummary) {
+  const changedBy = isCommunityAdmin.value ? 'Community Admin' : 'Board Member'
+
+  return {
+    changedAt: getTodayDate(),
+    changedBy,
+    changeSummary
+  }
+}
+
+function appendHistory(existingHistory, summary) {
+  const history = Array.isArray(existingHistory) ? [...existingHistory] : []
+  history.unshift(buildHistoryEntry(summary))
+  return history
 }
 
 function createRoleId() {
@@ -135,7 +241,13 @@ function createRoleId() {
 }
 
 function updateRoleById(roleId, updater) {
-  roles.value = roles.value.map((role) => (role.id === roleId ? updater(role) : role))
+  if (!communityData.value) {
+    return
+  }
+
+  communityData.value.roles = communityData.value.roles.map((role) =>
+    role.id === roleId ? updater(role) : role
+  )
 }
 
 function patchGlobalPermissions(updater) {
@@ -161,11 +273,15 @@ function resetRoleForm() {
   roleForm.value = {
     name: '',
     description: '',
-    scope: roleScopeOptions[0]
+    baseRoleType: baseRoleTypeOptions[0]
   }
+  roleFormError.value = ''
 }
 
 function openCreateRoleModal() {
+  if (!canManageRoles.value) {
+    return
+  }
 
   mode.value = 'create'
   editingRoleId.value = ''
@@ -174,41 +290,69 @@ function openCreateRoleModal() {
 }
 
 function openEditRoleModal(role) {
+  if (!canManageRoles.value) {
+    return
+  }
 
   mode.value = 'edit'
   editingRoleId.value = role.id
   roleForm.value = {
     name: role.name,
     description: role.description,
-    scope: role.scope
+    baseRoleType: resolveBaseRoleType(role)
   }
+  roleFormError.value = ''
   isRoleModalOpen.value = true
 }
 
 function closeRoleModal() {
   isRoleModalOpen.value = false
+  roleFormError.value = ''
 }
 
 function saveRole() {
-
-  if (!canSaveRole.value) {
+  if (!canManageRoles.value) {
     return
   }
+
+  if (!canSaveRole.value) {
+    roleFormError.value = 'Role name is required.'
+    return
+  }
+
+  if (!isEditingSystemRole.value && isRestrictedRoleName(roleForm.value.name)) {
+    roleFormError.value = 'Titles are not roles. Use board titles in metadata instead.'
+    return
+  }
+
+  roleFormError.value = ''
 
   const payload = {
     name: roleForm.value.name.trim(),
     description: roleForm.value.description.trim(),
-    scope: roleForm.value.scope,
+    baseRoleType: roleForm.value.baseRoleType,
     updatedAt: getTodayDate()
   }
 
   if (mode.value === 'edit') {
+    const lockedName = editingRole.value?.isSystem ? editingRole.value.name : payload.name
+    const lockedBaseRoleType = editingRole.value?.isSystem
+      ? resolveBaseRoleType(editingRole.value)
+      : payload.baseRoleType
+
     updateRoleById(editingRoleId.value, (role) => ({
       ...role,
-      ...payload
+      ...payload,
+      name: lockedName,
+      baseRoleType: lockedBaseRoleType,
+      history: appendHistory(role.history, 'Role details updated')
     }))
   } else {
-    roles.value = [
+    if (!communityData.value) {
+      return
+    }
+
+    communityData.value.roles = [
       {
         id: createRoleId(),
         memberCount: 0,
@@ -217,9 +361,10 @@ function saveRole() {
           global: createDefaultPermissions({ dashboardViewEnabled: true }),
           scoped: createScopedPermissions()
         },
+        history: appendHistory([], 'Role created'),
         ...payload
       },
-      ...roles.value
+      ...communityData.value.roles
     ]
   }
 
@@ -227,21 +372,33 @@ function saveRole() {
 }
 
 function duplicateRole(role) {
+  if (!canManageRoles.value) {
+    return
+  }
 
-  roles.value = [
+  if (!communityData.value) {
+    return
+  }
+
+  communityData.value.roles = [
     {
       ...role,
       id: createRoleId(),
       name: `${role.name} (Copy)`,
       isSystem: false,
       updatedAt: getTodayDate(),
-      permissions: normalizePermissions(role.permissions)
+      permissions: normalizePermissions(role.permissions),
+      history: appendHistory([], `Role duplicated from ${role.name}`),
+      baseRoleType: resolveBaseRoleType(role)
     },
-    ...roles.value
+    ...communityData.value.roles
   ]
 }
 
 function promptDeleteRole(role) {
+  if (!canManageRoles.value) {
+    return
+  }
 
   if (role.isSystem) {
     return
@@ -255,6 +412,7 @@ function getRoleActions(role) {
   return [
     { key: 'edit', label: 'Edit' },
     { key: 'permissions', label: 'Permissions' },
+    { key: 'history', label: 'View History' },
     { key: 'duplicate', label: 'Duplicate' },
     {
       key: 'delete',
@@ -282,6 +440,11 @@ function handleRoleAction(actionKey, role) {
     return
   }
 
+  if (actionKey === 'history') {
+    openHistoryModal(role)
+    return
+  }
+
   if (actionKey === 'delete') {
     promptDeleteRole(role)
   }
@@ -297,11 +460,20 @@ function confirmDeleteRole() {
     return
   }
 
-  roles.value = roles.value.filter((role) => role.id !== rolePendingDelete.value.id)
+  if (!communityData.value) {
+    return
+  }
+
+  communityData.value.roles = communityData.value.roles.filter(
+    (role) => role.id !== rolePendingDelete.value.id
+  )
   closeDeleteModal()
 }
 
 function openPermissionsModal(role) {
+  if (!canManageRoles.value) {
+    return
+  }
 
   permissionsRoleId.value = role.id
   permissionsRoleName.value = role.name
@@ -318,6 +490,9 @@ function closePermissionsModal() {
 }
 
 function savePermissions() {
+  if (!canManageRoles.value) {
+    return
+  }
 
   if (!permissionsRoleId.value) {
     return
@@ -328,10 +503,21 @@ function savePermissions() {
   updateRoleById(permissionsRoleId.value, (role) => ({
     ...role,
     permissions: normalizedPermissions,
-    updatedAt: getTodayDate()
+    updatedAt: getTodayDate(),
+    history: appendHistory(role.history, 'Permissions updated')
   }))
 
   closePermissionsModal()
+}
+
+function openHistoryModal(role) {
+  historyRole.value = role
+  isHistoryModalOpen.value = true
+}
+
+function closeHistoryModal() {
+  historyRole.value = null
+  isHistoryModalOpen.value = false
 }
 
 function isActionSupported(moduleKey, actionKey) {
@@ -527,13 +713,24 @@ function removeCommitteeOverride(committeeId) {
     <header class="roles-view__header">
       <div>
         <h1>Roles &amp; Permissions</h1>
-        <p>Manage governance roles for your HOA instance</p>
+        <p>Board-Controlled Roles &amp; Permissions</p>
       </div>
-      <BaseButton @click="openCreateRoleModal">Create Role</BaseButton>
+      <BaseButton :disabled="!canManageRoles" @click="openCreateRoleModal">
+        Create Role
+      </BaseButton>
     </header>
 
+    <div class="roles-view__banner">
+      Board Members control role definitions. Members may also serve on committees with scoped
+      permissions.
+    </div>
+
     <BaseCard>
-      <BaseTable :columns="tableColumns" :rows="sortedRoles">
+      <BaseTable
+        :columns="tableColumns"
+        :rows="sortedRoles"
+        style="--table-min-width: 1080px;"
+      >
         <template #cell-name="{ row }">
           <div class="role-name-cell">
             <span>{{ row.name }}</span>
@@ -546,12 +743,16 @@ function removeCommitteeOverride(committeeId) {
           </div>
         </template>
 
+        <template #cell-baseRoleType="{ row }">
+          <span>{{ resolveBaseRoleType(row) }}</span>
+        </template>
+
         <template #cell-memberCount="{ value }">
           <span class="roles-view__numeric">{{ value }}</span>
         </template>
 
         <template #cell-actions="{ row }">
-          <div class="table-action-cell">
+          <div v-if="canManageRoles" class="table-action-cell">
             <RowActionMenu
               :actions="getRoleActions(row)"
               label="Role row actions"
@@ -595,11 +796,13 @@ function removeCommitteeOverride(committeeId) {
       description="Create or update a role definition for this HOA instance."
     >
       <div class="role-form">
-        <BaseInput
-          v-model="roleForm.name"
-          label="Role Name"
-          placeholder="Enter role name"
-        />
+        <div class="role-form__locked" :class="{ 'is-disabled': isEditingSystemRole }">
+          <BaseInput
+            v-model="roleForm.name"
+            label="Role Name"
+            placeholder="Enter role name"
+          />
+        </div>
         <BaseInput
           v-model="roleForm.description"
           type="textarea"
@@ -609,13 +812,19 @@ function removeCommitteeOverride(committeeId) {
         />
 
         <label class="role-form__field">
-          <span>Scope</span>
-          <select v-model="roleForm.scope">
-            <option v-for="scope in roleScopeOptions" :key="scope" :value="scope">
-              {{ scope }}
+          <span>Base Role Type</span>
+          <select v-model="roleForm.baseRoleType" :disabled="isEditingSystemRole">
+            <option v-for="baseType in baseRoleTypeOptions" :key="baseType" :value="baseType">
+              {{ baseType }}
             </option>
           </select>
         </label>
+
+        <p v-if="isEditingSystemRole" class="role-form__note">
+          System roles have locked names and base types.
+        </p>
+
+        <p v-if="roleFormError" class="role-form__error">{{ roleFormError }}</p>
       </div>
 
       <template #footer>
@@ -835,6 +1044,24 @@ function removeCommitteeOverride(committeeId) {
         <BaseButton variant="danger" @click="confirmDeleteRole">Delete</BaseButton>
       </template>
     </BaseModal>
+
+    <BaseModal
+      v-model="isHistoryModalOpen"
+      :title="historyModalTitle"
+      description="Review recent role changes for governance tracking."
+    >
+      <div class="history-modal">
+        <BaseTable :columns="historyColumns" :rows="historyRows">
+          <template #cell-changeSummary="{ value }">
+            <span class="history-modal__summary">{{ value }}</span>
+          </template>
+        </BaseTable>
+      </div>
+
+      <template #footer>
+        <BaseButton variant="ghost" @click="closeHistoryModal">Close</BaseButton>
+      </template>
+    </BaseModal>
   </section>
 </template>
 
@@ -863,6 +1090,15 @@ function removeCommitteeOverride(committeeId) {
   margin: var(--space-xs) 0 0;
   color: var(--color-text-secondary);
   font-size: 0.92rem;
+}
+
+.roles-view__banner {
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-panel);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  padding: var(--space-md);
 }
 
 .roles-view__numeric {
@@ -959,6 +1195,11 @@ function removeCommitteeOverride(committeeId) {
   gap: var(--space-md);
 }
 
+.role-form__locked.is-disabled {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
 .role-form__field {
   display: flex;
   flex-direction: column;
@@ -985,6 +1226,19 @@ function removeCommitteeOverride(committeeId) {
 .role-form__field select:focus {
   border-color: var(--color-input-focus-border);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.role-form__note {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.role-form__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .permissions-modal-content {
@@ -1180,6 +1434,15 @@ function removeCommitteeOverride(committeeId) {
 }
 
 .delete-note strong {
+  color: var(--color-text-primary);
+}
+
+.history-modal {
+  max-height: calc(var(--space-2xl) * 6);
+  overflow: auto;
+}
+
+.history-modal__summary {
   color: var(--color-text-primary);
 }
 
