@@ -46,7 +46,7 @@ const seededCommittees = [
     description: 'Tracks covenant compliance cases and policy enforcement status.',
     frequency: 'Annual',
     visibility: 'board',
-    memberIds: ['5bb0f5f3-0898-47f9-94dd-5c4d37f2bbcb'],
+    memberIds: ['48f729b8-44c8-42f6-9935-3f7f4f247f05'],
     updatedAt: '2026-02-09'
   }
 ]

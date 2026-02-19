@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import BaseBadge from '../components/ui/BaseBadge.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
@@ -8,20 +8,20 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import RowActionMenu from '../components/ui/RowActionMenu.vue'
 import BaseTable from '../components/ui/BaseTable.vue'
 import BaseToggle from '../components/ui/BaseToggle.vue'
-import { normalizeMeeting, voteValueOptions } from '../mock/mockMeetingsData'
-import { useTenantStore } from '../state/tenantStore'
-import { usePermission } from '../composables/usePermission'
+import { createInitialCommittees } from '../mock/committeesData'
+import {
+  createInitialMeetings,
+  meetingTypeOptions,
+  normalizeMeeting,
+  voteValueOptions
+} from '../mock/mockMeetingsData'
+import { createInitialUsers } from '../mock/mockUsersData'
+import { createInitialRoles } from '../mock/rolesData'
 
-const { currentCommunityData } = useTenantStore()
-const { canView, canPerform, isAdmin, isBoard } = usePermission()
-
-const communityData = computed(() => currentCommunityData.value)
-const meetings = computed(() => communityData.value?.meetings || [])
-const committees = computed(() => communityData.value?.committees || [])
-const metadata = computed(() => communityData.value?.metadata || {})
-const meetingTypes = computed(() => metadata.value?.meetingTypes || [])
-const users = computed(() => communityData.value?.users || [])
-const roles = computed(() => communityData.value?.roles || [])
+const meetings = ref(createInitialMeetings())
+const committees = ref(createInitialCommittees())
+const users = ref(createInitialUsers())
+const roles = ref(createInitialRoles())
 
 const isMeetingModalOpen = ref(false)
 const isDeleteModalOpen = ref(false)
@@ -42,7 +42,7 @@ const minutesMeetingId = ref('')
 const minutesDraft = ref('')
 const decisionsDraft = ref([])
 
-const meetingForm = ref({})
+const meetingForm = ref(createBlankMeetingForm())
 const selectedMeetingId = ref(meetings.value[0]?.id || '')
 
 const meetingColumns = [
@@ -72,16 +72,6 @@ const committeeNameById = computed(() => {
   return mapped
 })
 
-const meetingTypeById = computed(() => {
-  const mapped = {}
-  meetingTypes.value.forEach((meetingType) => {
-    if (meetingType?.id) {
-      mapped[meetingType.id] = meetingType
-    }
-  })
-  return mapped
-})
-
 const userById = computed(() => {
   const mapped = {}
   users.value.forEach((user) => {
@@ -100,43 +90,9 @@ const sortedMeetings = computed(() =>
   )
 )
 
-const meetingTypeOptions = computed(() =>
-  meetingTypes.value
-    .filter((meetingType) => meetingType?.active !== false)
-    .map((meetingType) => ({
-      id: meetingType.id,
-      name: meetingType.name || 'Meeting Type',
-      category: resolveMeetingTypeCategory(meetingType),
-      allowedModes: Array.isArray(meetingType.allowedModes)
-        ? meetingType.allowedModes
-        : ['onsite', 'virtual', 'hybrid'],
-      defaultMode: meetingType.defaultMode,
-      enableVoting: Boolean(meetingType.enableVoting),
-      enableMotions: Boolean(meetingType.enableMotions)
-    }))
-)
-
-const selectedMeetingType = computed(() =>
-  meetingTypeById.value[meetingForm.value.meetingTypeId] ||
-  meetingTypes.value.find((meetingType) => meetingType?.active !== false) ||
-  null
-)
-
-const meetingModeOptionsForForm = computed(() => {
-  if (Array.isArray(selectedMeetingType.value?.allowedModes) && selectedMeetingType.value.allowedModes.length) {
-    return selectedMeetingType.value.allowedModes
-  }
-  return ['onsite', 'virtual', 'hybrid']
-})
-
-if (!meetingForm.value || Object.keys(meetingForm.value).length === 0) {
-  meetingForm.value = createBlankMeetingForm()
-}
-
-const visibleMeetings = computed(() => sortedMeetings.value.filter((meeting) => isMeetingVisible(meeting)))
 
 const meetingRows = computed(() =>
-  visibleMeetings.value.map((meeting) => ({
+  sortedMeetings.value.map((meeting) => ({
     ...meeting,
     committeeLabel: resolveCommitteeLabel(meeting),
     scheduledLabel: formatMeetingDate(meeting.scheduledAt),
@@ -146,42 +102,16 @@ const meetingRows = computed(() =>
 )
 
 const selectedMeeting = computed(
-  () =>
-    visibleMeetings.value.find((meeting) => meeting.id === selectedMeetingId.value) ||
-    visibleMeetings.value[0] ||
-    null
+  () => meetings.value.find((meeting) => meeting.id === selectedMeetingId.value) || meetings.value[0] || null
 )
 
 const canSaveMeeting = computed(() => {
   const hasTitle = meetingForm.value.title.trim().length > 0
   const hasDate = Boolean(toIsoDateTime(meetingForm.value.scheduledAtLocal))
-  const hasMeetingType =
-    Boolean(meetingForm.value.meetingTypeId) || meetingTypeOptions.value.length === 0
   const hasCommittee = meetingForm.value.type === 'board' || Boolean(meetingForm.value.committeeId)
 
-  return hasTitle && hasDate && hasMeetingType && hasCommittee
+  return hasTitle && hasDate && hasCommittee
 })
-
-const canCreateMeeting = computed(() => canPerform('meetings', 'create'))
-const canEditMeeting = computed(() => canPerform('meetings', 'edit'))
-const canDeleteMeeting = computed(() => canPerform('meetings', 'delete'))
-const canViewDecisions = computed(() => canView('motions'))
-const canManageDecisions = computed(
-  () => canPerform('motions', 'create') || canPerform('motions', 'edit')
-)
-const canVote = computed(
-  () => canPerform('motions', 'vote') && isVotingEnabled(selectedMinutesMeeting.value)
-)
-
-watch(
-  visibleMeetings,
-  (nextMeetings) => {
-    if (!nextMeetings.find((meeting) => meeting.id === selectedMeetingId.value)) {
-      selectedMeetingId.value = nextMeetings[0]?.id || ''
-    }
-  },
-  { immediate: true }
-)
 
 const meetingModalTitle = computed(() =>
   mode.value === 'edit' ? 'Edit Meeting' : 'Schedule Meeting'
@@ -238,18 +168,6 @@ const detailAttendanceSummary = computed(() => getAttendanceSummary(selectedDeta
 const selectedAttendanceSummary = computed(() =>
   getAttendanceSummary(selectedMeeting.value?.attendees || [])
 )
-const showDetailVoteSummary = computed(
-  () => isVotingEnabled(selectedDetailMeeting.value) && canPerform('meetings', 'vote')
-)
-const showVotingControls = computed(
-  () => isVotingEnabled(selectedMinutesMeeting.value) && canPerform('meetings', 'vote')
-)
-const canViewDetailDecisions = computed(
-  () => canViewDecisions.value && isMotionsEnabled(selectedDetailMeeting.value)
-)
-const canViewMinutesDecisions = computed(
-  () => canViewDecisions.value && isMotionsEnabled(selectedMinutesMeeting.value)
-)
 
 const detailDecisions = computed(() => {
   if (!selectedDetailMeeting.value) {
@@ -271,22 +189,13 @@ const detailDecisions = computed(() => {
 })
 
 function createBlankMeetingForm() {
-  const defaultMeetingType = meetingTypeOptions.value[0] || null
-  const defaultCategory = defaultMeetingType
-    ? resolveMeetingTypeCategory(defaultMeetingType)
-    : 'board'
-  const defaultMode =
-    defaultMeetingType?.defaultMode ||
-    (Array.isArray(defaultMeetingType?.allowedModes) ? defaultMeetingType.allowedModes[0] : 'onsite')
-
   return {
     title: '',
-    meetingTypeId: defaultMeetingType?.id || '',
-    type: defaultCategory,
+    type: meetingTypeOptions[0],
     committeeId: '',
     scheduledAtLocal: '',
     location: '',
-    mode: defaultMode,
+    isVirtual: false,
     visibility: 'board'
   }
 }
@@ -308,11 +217,7 @@ function createDecisionId() {
 }
 
 function updateMeetingById(meetingId, updater) {
-  if (!communityData.value) {
-    return
-  }
-
-  communityData.value.meetings = communityData.value.meetings.map((meeting) =>
+  meetings.value = meetings.value.map((meeting) =>
     meeting.id === meetingId ? normalizeMeeting(updater(meeting)) : meeting
   )
 }
@@ -396,27 +301,12 @@ function getAttendanceSummary(attendees) {
   }
 }
 
-function resolveMeetingTypeLabel(meeting) {
-  const meetingType = resolveMeetingTypeForMeeting(meeting)
-  if (meetingType?.name) {
-    return meetingType.name
-  }
-
-  return resolveMeetingCategory(meeting) === 'committee' ? 'Committee' : 'Board'
+function resolveMeetingTypeLabel(type) {
+  return type === 'board' ? 'Board' : 'Committee'
 }
 
-function resolveMeetingTypeVariant(category) {
-  return category === 'committee' ? 'warning' : 'info'
-}
-
-function formatMeetingMode(mode) {
-  if (mode === 'virtual') {
-    return 'Virtual'
-  }
-  if (mode === 'hybrid') {
-    return 'Hybrid'
-  }
-  return 'On-site'
+function resolveMeetingTypeVariant(type) {
+  return type === 'board' ? 'info' : 'warning'
 }
 
 function resolveVisibilityLabel(visibility) {
@@ -440,44 +330,8 @@ function resolveMeetingLifecycleVariant(status) {
   return status === 'Upcoming' ? 'info' : 'neutral'
 }
 
-function isVotingEnabled(meeting) {
-  const meetingType = resolveMeetingTypeForMeeting(meeting)
-  if (!meetingType) {
-    return false
-  }
-
-  return Boolean(meetingType.enableVoting)
-}
-
-function isMotionsEnabled(meeting) {
-  const meetingType = resolveMeetingTypeForMeeting(meeting)
-  if (!meetingType) {
-    return false
-  }
-
-  return Boolean(meetingType.enableMotions)
-}
-
-function isMeetingVisible(meeting) {
-  if (!meeting) {
-    return false
-  }
-
-  const meetingCategory = resolveMeetingCategory(meeting)
-  const committeeId = meetingCategory === 'committee' ? meeting.committeeId : ''
-  if (!canView('meetings', { committeeId })) {
-    return false
-  }
-
-  if (!isAdmin.value && !isBoard.value && meeting.visibility === 'board') {
-    return false
-  }
-
-  return true
-}
-
 function resolveCommitteeLabel(meeting) {
-  if (resolveMeetingCategory(meeting) === 'board') {
+  if (meeting.type === 'board') {
     return 'Board-wide'
   }
 
@@ -520,106 +374,31 @@ function resolveGovernanceActionTypeVariant(type) {
   return normalizeGovernanceActionType(type) === 'resolution' ? 'warning' : 'info'
 }
 
-function resolveMeetingTypeCategory(meetingType) {
-  if (!meetingType) {
-    return 'board'
-  }
-
-  if (meetingType.category === 'committee') {
-    return 'committee'
-  }
-
-  if (meetingType.category === 'board') {
-    return 'board'
-  }
-
-  const name = typeof meetingType.name === 'string' ? meetingType.name.toLowerCase() : ''
-  return name.includes('committee') ? 'committee' : 'board'
-}
-
-function resolveMeetingTypeForMeeting(meeting) {
-  if (!meeting) {
-    return null
-  }
-
-  if (meeting.meetingTypeId && meetingTypeById.value[meeting.meetingTypeId]) {
-    return meetingTypeById.value[meeting.meetingTypeId]
-  }
-
-  const fallbackCategory = meeting.type === 'committee' ? 'committee' : 'board'
-  return meetingTypes.value.find((type) => resolveMeetingTypeCategory(type) === fallbackCategory) || meetingTypes.value[0] || null
-}
-
-function resolveMeetingCategory(meeting) {
-  if (!meeting) {
-    return 'board'
-  }
-
-  const meetingType = resolveMeetingTypeForMeeting(meeting)
-  if (meetingType) {
-    return resolveMeetingTypeCategory(meetingType)
-  }
-
-  return meeting.type === 'committee' ? 'committee' : 'board'
-}
-
-function handleMeetingTypeChange(nextMeetingTypeId) {
-  const selectedType = meetingTypeById.value[nextMeetingTypeId] || meetingTypeOptions.value[0] || null
-  const category = resolveMeetingTypeCategory(selectedType)
-  const allowedModes = Array.isArray(selectedType?.allowedModes) && selectedType.allowedModes.length
-    ? selectedType.allowedModes
-    : ['onsite', 'virtual', 'hybrid']
-  const defaultMode = selectedType?.defaultMode && allowedModes.includes(selectedType.defaultMode)
-    ? selectedType.defaultMode
-    : allowedModes[0]
-
-  meetingForm.value.meetingTypeId = selectedType?.id || ''
-  meetingForm.value.type = category
-  meetingForm.value.mode = defaultMode
-
-  if (category === 'board') {
+function handleMeetingTypeChange(nextType) {
+  meetingForm.value.type = nextType
+  if (nextType === 'board') {
     meetingForm.value.committeeId = ''
   }
 }
 
 function openCreateMeetingModal() {
-  if (!canCreateMeeting.value) {
-    return
-  }
-
   mode.value = 'create'
   editingMeetingId.value = ''
   meetingForm.value = createBlankMeetingForm()
-  if (!meetingForm.value.meetingTypeId && meetingTypeOptions.value.length > 0) {
-    handleMeetingTypeChange(meetingTypeOptions.value[0].id)
-  }
   isMeetingModalOpen.value = true
 }
 
 function openEditMeetingModal(meeting) {
-  if (!canEditMeeting.value) {
-    return
-  }
-
-  const meetingType = resolveMeetingTypeForMeeting(meeting)
-
   mode.value = 'edit'
   editingMeetingId.value = meeting.id
   meetingForm.value = {
     title: meeting.title,
-    meetingTypeId: meetingType?.id || '',
-    type: resolveMeetingTypeCategory(meetingType || { category: meeting.type }),
+    type: meeting.type,
     committeeId: meeting.committeeId || '',
     scheduledAtLocal: toDateTimeLocal(meeting.scheduledAt),
     location: meeting.location,
-    mode: meeting.mode || (meeting.isVirtual ? 'virtual' : 'onsite'),
+    isVirtual: meeting.isVirtual,
     visibility: meeting.visibility
-  }
-  if (!meetingModeOptionsForForm.value.includes(meetingForm.value.mode)) {
-    meetingForm.value.mode = meetingModeOptionsForForm.value[0] || 'onsite'
-  }
-  if (!meetingForm.value.meetingTypeId && meetingTypeOptions.value.length > 0) {
-    handleMeetingTypeChange(meetingTypeOptions.value[0].id)
   }
   isMeetingModalOpen.value = true
 }
@@ -629,14 +408,6 @@ function closeMeetingModal() {
 }
 
 function saveMeeting() {
-  if (mode.value === 'edit' && !canEditMeeting.value) {
-    return
-  }
-
-  if (mode.value !== 'edit' && !canCreateMeeting.value) {
-    return
-  }
-
   if (!canSaveMeeting.value) {
     return
   }
@@ -650,12 +421,10 @@ function saveMeeting() {
   const payload = {
     title: meetingForm.value.title.trim(),
     type: meetingForm.value.type,
-    meetingTypeId: meetingForm.value.meetingTypeId,
     committeeId: meetingForm.value.type === 'committee' ? meetingForm.value.committeeId : null,
     scheduledAt: scheduledAtIso,
     location: meetingForm.value.location.trim(),
-    mode: meetingForm.value.mode,
-    isVirtual: meetingForm.value.mode !== 'onsite',
+    isVirtual: meetingForm.value.isVirtual,
     visibility: meetingForm.value.visibility,
     updatedAt: nowIso
   }
@@ -666,11 +435,7 @@ function saveMeeting() {
       ...payload
     }))
   } else {
-    if (!communityData.value) {
-      return
-    }
-
-    communityData.value.meetings = [
+    meetings.value = [
       normalizeMeeting({
         id: createMeetingId(),
         attendees: [],
@@ -679,7 +444,7 @@ function saveMeeting() {
         createdAt: nowIso,
         ...payload
       }),
-      ...communityData.value.meetings
+      ...meetings.value
     ]
   }
 
@@ -687,26 +452,16 @@ function saveMeeting() {
 }
 
 function promptDeleteMeeting(meeting) {
-  if (!canDeleteMeeting.value) {
-    return
-  }
-
   meetingPendingDelete.value = meeting
   isDeleteModalOpen.value = true
 }
 
 function getMeetingActions() {
-  const actions = [{ key: 'view', label: 'View' }]
-
-  if (canEditMeeting.value) {
-    actions.push({ key: 'edit', label: 'Edit' })
-  }
-
-  if (canDeleteMeeting.value) {
-    actions.push({ key: 'delete', label: 'Delete', variant: 'danger' })
-  }
-
-  return actions
+  return [
+    { key: 'view', label: 'View' },
+    { key: 'edit', label: 'Edit' },
+    { key: 'delete', label: 'Delete', variant: 'danger' }
+  ]
 }
 
 function handleMeetingAction(actionKey, meeting) {
@@ -716,16 +471,12 @@ function handleMeetingAction(actionKey, meeting) {
   }
 
   if (actionKey === 'edit') {
-    if (canEditMeeting.value) {
-      openEditMeetingModal(meeting)
-    }
+    openEditMeetingModal(meeting)
     return
   }
 
   if (actionKey === 'delete') {
-    if (canDeleteMeeting.value) {
-      promptDeleteMeeting(meeting)
-    }
+    promptDeleteMeeting(meeting)
   }
 }
 
@@ -739,13 +490,7 @@ function confirmDeleteMeeting() {
     return
   }
 
-  if (!communityData.value) {
-    return
-  }
-
-  communityData.value.meetings = communityData.value.meetings.filter(
-    (meeting) => meeting.id !== meetingPendingDelete.value.id
-  )
+  meetings.value = meetings.value.filter((meeting) => meeting.id !== meetingPendingDelete.value.id)
 
   if (detailMeetingId.value === meetingPendingDelete.value.id) {
     closeDetailModal()
@@ -765,10 +510,6 @@ function closeDetailModal() {
 }
 
 function openAttendeesModal(meeting) {
-  if (!canEditMeeting.value) {
-    return
-  }
-
   attendeesMeetingId.value = meeting.id
 
   const nextDraft = {}
@@ -810,10 +551,6 @@ function setAttendeeStatus(userId, isPresent) {
 }
 
 function saveAttendees() {
-  if (!canEditMeeting.value) {
-    return
-  }
-
   if (!attendeesMeetingId.value) {
     return
   }
@@ -833,10 +570,6 @@ function saveAttendees() {
 }
 
 function openMinutesModal(meeting) {
-  if (!canEditMeeting.value && !canManageDecisions.value) {
-    return
-  }
-
   minutesMeetingId.value = meeting.id
   minutesDraft.value = meeting.minutes || ''
 
@@ -880,10 +613,6 @@ function closeMinutesModal() {
 }
 
 function addDecision() {
-  if (!canManageDecisions.value) {
-    return
-  }
-
   const votesByUserId = {}
   users.value.forEach((user) => {
     votesByUserId[user.id] = 'abstain'
@@ -901,18 +630,10 @@ function addDecision() {
 }
 
 function removeDecision(decisionId) {
-  if (!canManageDecisions.value) {
-    return
-  }
-
   decisionsDraft.value = decisionsDraft.value.filter((decision) => decision.id !== decisionId)
 }
 
 function setDecisionText(decisionId, nextText) {
-  if (!canManageDecisions.value) {
-    return
-  }
-
   decisionsDraft.value = decisionsDraft.value.map((decision) =>
     decision.id === decisionId
       ? {
@@ -924,10 +645,6 @@ function setDecisionText(decisionId, nextText) {
 }
 
 function setDecisionType(decisionId, nextType) {
-  if (!canManageDecisions.value) {
-    return
-  }
-
   decisionsDraft.value = decisionsDraft.value.map((decision) =>
     decision.id === decisionId
       ? {
@@ -939,10 +656,6 @@ function setDecisionType(decisionId, nextType) {
 }
 
 function setDecisionVote(decisionId, userId, nextValue) {
-  if (!canVote.value) {
-    return
-  }
-
   decisionsDraft.value = decisionsDraft.value.map((decision) =>
     decision.id === decisionId
       ? {
@@ -1019,10 +732,6 @@ function getDecisionOutcome(decision) {
 }
 
 function saveMinutesAndDecisions() {
-  if (!canEditMeeting.value && !canManageDecisions.value) {
-    return
-  }
-
   if (!minutesMeetingId.value) {
     return
   }
@@ -1057,9 +766,7 @@ function saveMinutesAndDecisions() {
         <h1>Meetings</h1>
         <p>Schedule and manage HOA meetings</p>
       </div>
-      <BaseButton v-if="canCreateMeeting" @click="openCreateMeetingModal">
-        + Schedule Meeting
-      </BaseButton>
+      <BaseButton @click="openCreateMeetingModal">+ Schedule Meeting</BaseButton>
     </header>
 
     <BaseCard title="Meeting Workflow" subtitle="Create, capture attendance, and record minutes.">
@@ -1067,7 +774,7 @@ function saveMinutesAndDecisions() {
         <label class="meeting-workflow__field">
           <span>Active meeting</span>
           <select v-model="selectedMeetingId">
-            <option v-for="meeting in visibleMeetings" :key="meeting.id" :value="meeting.id">
+            <option v-for="meeting in sortedMeetings" :key="meeting.id" :value="meeting.id">
               {{ meeting.title }} · {{ formatMeetingDateShort(meeting.scheduledAt) }}
             </option>
           </select>
@@ -1080,9 +787,7 @@ function saveMinutesAndDecisions() {
               <h4>Schedule meeting</h4>
               <p>Create board or committee sessions with locations and links.</p>
             </div>
-            <BaseButton size="sm" :disabled="!canCreateMeeting" @click="openCreateMeetingModal">
-              Create
-            </BaseButton>
+            <BaseButton size="sm" @click="openCreateMeetingModal">Create</BaseButton>
           </article>
 
           <article class="meeting-workflow__step">
@@ -1094,7 +799,7 @@ function saveMinutesAndDecisions() {
             <BaseButton
               size="sm"
               variant="secondary"
-              :disabled="!selectedMeeting || !canEditMeeting"
+              :disabled="!selectedMeeting"
               @click="openAttendeesModal(selectedMeeting)"
             >
               Manage
@@ -1110,7 +815,7 @@ function saveMinutesAndDecisions() {
             <BaseButton
               size="sm"
               variant="ghost"
-              :disabled="!selectedMeeting || (!canEditMeeting && !canManageDecisions)"
+              :disabled="!selectedMeeting"
               @click="openMinutesModal(selectedMeeting)"
             >
               Add Notes
@@ -1122,9 +827,7 @@ function saveMinutesAndDecisions() {
           <h5>Meeting snapshot</h5>
           <p>{{ selectedMeeting.title }}</p>
           <div class="meeting-workflow__meta">
-            <BaseBadge size="sm" variant="neutral">
-              {{ resolveMeetingTypeLabel(selectedMeeting) }}
-            </BaseBadge>
+            <BaseBadge size="sm" variant="neutral">{{ resolveMeetingTypeLabel(selectedMeeting.type) }}</BaseBadge>
             <BaseBadge size="sm" variant="neutral">{{ resolveVisibilityLabel(selectedMeeting.visibility) }}</BaseBadge>
             <BaseBadge size="sm" :variant="resolveMeetingLifecycleVariant(resolveMeetingLifecycleStatus(selectedMeeting.scheduledAt))">
               {{ resolveMeetingLifecycleStatus(selectedMeeting.scheduledAt) }}
@@ -1140,18 +843,14 @@ function saveMinutesAndDecisions() {
     </BaseCard>
 
     <BaseCard>
-      <BaseTable
-        :columns="meetingColumns"
-        :rows="meetingRows"
-        style="--table-min-width: 1160px;"
-      >
+      <BaseTable :columns="meetingColumns" :rows="meetingRows">
         <template #cell-title="{ value }">
           <span class="meetings-view__cell" :title="value">{{ value }}</span>
         </template>
 
-        <template #cell-type="{ row }">
+        <template #cell-type="{ value }">
           <BaseBadge size="sm" variant="neutral" class="meetings-view__badge">
-            {{ resolveMeetingTypeLabel(row) }}
+            {{ resolveMeetingTypeLabel(value) }}
           </BaseBadge>
         </template>
 
@@ -1204,18 +903,13 @@ function saveMinutesAndDecisions() {
         />
 
         <label class="meeting-form__field">
-          <span>Meeting Type</span>
+          <span>Type</span>
           <select
-            :value="meetingForm.meetingTypeId"
+            :value="meetingForm.type"
             @change="handleMeetingTypeChange($event.target.value)"
           >
-            <option
-              v-for="meetingType in meetingTypeOptions"
-              :key="meetingType.id"
-              :value="meetingType.id"
-            >
-              {{ meetingType.name }}
-            </option>
+            <option value="board">Board</option>
+            <option value="committee">Committee</option>
           </select>
         </label>
 
@@ -1248,14 +942,17 @@ function saveMinutesAndDecisions() {
           placeholder="Enter location"
         />
 
-        <label class="meeting-form__field">
-          <span>Mode</span>
-          <select v-model="meetingForm.mode">
-            <option v-for="mode in meetingModeOptionsForForm" :key="mode" :value="mode">
-              {{ formatMeetingMode(mode) }}
-            </option>
-          </select>
-        </label>
+        <div class="meeting-form__toggle-field">
+          <span>Virtual Meeting</span>
+          <div class="meeting-form__toggle-row">
+            <small>On-site</small>
+            <BaseToggle
+              :model-value="meetingForm.isVirtual"
+              @update:model-value="meetingForm.isVirtual = $event"
+            />
+            <small>Virtual</small>
+          </div>
+        </div>
 
         <div class="meeting-form__toggle-field">
           <span>Visibility</span>
@@ -1289,8 +986,8 @@ function saveMinutesAndDecisions() {
             <div>
               <small>Type</small>
               <p>
-                <BaseBadge :variant="resolveMeetingTypeVariant(resolveMeetingCategory(selectedDetailMeeting))">
-                  {{ resolveMeetingTypeLabel(selectedDetailMeeting) }}
+                <BaseBadge :variant="resolveMeetingTypeVariant(selectedDetailMeeting.type)">
+                  {{ resolveMeetingTypeLabel(selectedDetailMeeting.type) }}
                 </BaseBadge>
               </p>
             </div>
@@ -1315,8 +1012,8 @@ function saveMinutesAndDecisions() {
               <p>{{ selectedDetailMeeting.location || 'Not specified' }}</p>
             </div>
             <div>
-              <small>Mode</small>
-              <p>{{ formatMeetingMode(selectedDetailMeeting.mode || (selectedDetailMeeting.isVirtual ? 'virtual' : 'onsite')) }}</p>
+              <small>Virtual</small>
+              <p>{{ selectedDetailMeeting.isVirtual ? 'Yes' : 'No' }}</p>
             </div>
           </div>
         </section>
@@ -1339,7 +1036,7 @@ function saveMinutesAndDecisions() {
           </div>
         </section>
 
-        <section v-if="canViewDetailDecisions" class="meeting-detail__section">
+        <section class="meeting-detail__section">
           <h4>Decisions</h4>
 
           <div v-if="detailDecisions.length === 0" class="meeting-detail__empty">
@@ -1356,18 +1053,14 @@ function saveMinutesAndDecisions() {
                 <BaseBadge size="sm" :variant="resolveGovernanceActionTypeVariant(action.type)">
                   {{ resolveGovernanceActionTypeLabel(action.type) }}
                 </BaseBadge>
-                <BaseBadge
-                  v-if="showDetailVoteSummary"
-                  size="sm"
-                  :variant="resolveVoteOutcomeVariant(action.outcome)"
-                >
+                <BaseBadge size="sm" :variant="resolveVoteOutcomeVariant(action.outcome)">
                   {{ resolveVoteOutcomeLabel(action.outcome) }}
                 </BaseBadge>
               </div>
 
               <p class="meeting-detail__action-text">{{ action.text }}</p>
 
-              <div v-if="showDetailVoteSummary" class="meeting-detail__action-votes">
+              <div class="meeting-detail__action-votes">
                 <BaseBadge size="sm" variant="success">Yes: {{ action.voteCounts.yes }}</BaseBadge>
                 <BaseBadge size="sm" variant="danger">No: {{ action.voteCounts.no }}</BaseBadge>
                 <BaseBadge size="sm" variant="neutral">Abstain: {{ action.voteCounts.abstain }}</BaseBadge>
@@ -1378,20 +1071,8 @@ function saveMinutesAndDecisions() {
       </div>
 
       <template #footer>
-        <BaseButton
-          v-if="canEditMeeting"
-          variant="ghost"
-          @click="openAttendeesFromDetail"
-        >
-          Manage Attendees
-        </BaseButton>
-        <BaseButton
-          v-if="canEditMeeting || canManageDecisions"
-          variant="ghost"
-          @click="openMinutesFromDetail"
-        >
-          Minutes & Decisions
-        </BaseButton>
+        <BaseButton variant="ghost" @click="openAttendeesFromDetail">Manage Attendees</BaseButton>
+        <BaseButton variant="ghost" @click="openMinutesFromDetail">Minutes & Decisions</BaseButton>
         <BaseButton @click="closeDetailModal">Close</BaseButton>
       </template>
     </BaseModal>
@@ -1474,120 +1155,95 @@ function saveMinutesAndDecisions() {
           placeholder="Enter meeting minutes"
         />
 
-        <div v-if="canViewMinutesDecisions">
-          <div class="minutes-modal__header-row">
-            <h4>Decisions</h4>
-            <BaseButton
-              size="sm"
-              variant="secondary"
-              :disabled="!canManageDecisions"
-              @click="addDecision"
-            >
-              + Add Decision
-            </BaseButton>
-          </div>
+        <div class="minutes-modal__header-row">
+          <h4>Decisions</h4>
+          <BaseButton size="sm" variant="secondary" @click="addDecision">+ Add Decision</BaseButton>
+        </div>
 
-          <div v-if="decisionsDraft.length === 0" class="minutes-modal__empty">
-            No decisions added yet.
-          </div>
+        <div v-if="decisionsDraft.length === 0" class="minutes-modal__empty">
+          No decisions added yet.
+        </div>
 
-          <div v-else class="decision-list">
-            <BaseCard
-              v-for="decision in decisionsDraft"
-              :key="decision.id"
-              class="decision-card"
-            >
-              <header class="decision-card__header">
-                <h5>Decision Item</h5>
+        <div v-else class="decision-list">
+          <BaseCard
+            v-for="decision in decisionsDraft"
+            :key="decision.id"
+            class="decision-card"
+          >
+            <header class="decision-card__header">
+              <h5>Decision Item</h5>
 
-                <div class="decision-card__header-actions">
-                  <BaseBadge size="sm" :variant="resolveGovernanceActionTypeVariant(decision.type)">
-                    {{ resolveGovernanceActionTypeLabel(decision.type) }}
-                  </BaseBadge>
-                  <BaseBadge size="sm" :variant="resolveVoteOutcomeVariant(getDecisionOutcome(decision))">
-                    {{ resolveVoteOutcomeLabel(getDecisionOutcome(decision)) }}
-                  </BaseBadge>
-                  <BaseButton
-                    size="sm"
-                    variant="danger"
-                    :disabled="!canManageDecisions"
-                    @click="removeDecision(decision.id)"
-                  >
-                    Remove
-                  </BaseButton>
-                </div>
-              </header>
-
-              <label class="decision-card__field">
-                <span>Decision Type</span>
-                <select
-                  :value="decision.type"
-                  :disabled="!canManageDecisions"
-                  @change="setDecisionType(decision.id, $event.target.value)"
-                >
-                  <option value="recommendation">Recommendation</option>
-                  <option value="resolution">Resolution</option>
-                </select>
-              </label>
-
-              <BaseInput
-                :model-value="decision.text"
-                label="Decision Text"
-                placeholder="Enter decision details"
-                @update:model-value="setDecisionText(decision.id, $event)"
-              />
-
-              <div v-if="showVotingControls">
-                <div class="decision-votes__header">
-                  <h6>Individual Votes</h6>
-                </div>
-
-                <div class="decision-votes">
-                  <div
-                    v-for="user in sortedUsers"
-                    :key="`${decision.id}-${user.id}`"
-                    class="decision-votes__row"
-                  >
-                    <span>{{ user.name }}</span>
-
-                    <select
-                      :value="decision.votesByUserId[user.id]"
-                      :disabled="!canVote"
-                      @change="setDecisionVote(decision.id, user.id, $event.target.value)"
-                    >
-                      <option value="yes">Yes</option>
-                      <option value="no">No</option>
-                      <option value="abstain">Abstain</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="decision-summary">
-                  <span class="decision-summary__label">Vote Totals</span>
-
-                  <div class="decision-summary__badges">
-                    <BaseBadge variant="success">Yes: {{ getDecisionVoteCounts(decision).yes }}</BaseBadge>
-                    <BaseBadge variant="danger">No: {{ getDecisionVoteCounts(decision).no }}</BaseBadge>
-                    <BaseBadge variant="neutral">Abstain: {{ getDecisionVoteCounts(decision).abstain }}</BaseBadge>
-                    <BaseBadge :variant="resolveVoteOutcomeVariant(getDecisionOutcome(decision))">
-                      Outcome: {{ resolveVoteOutcomeLabel(getDecisionOutcome(decision)) }}
-                    </BaseBadge>
-                  </div>
-                </div>
+              <div class="decision-card__header-actions">
+                <BaseBadge size="sm" :variant="resolveGovernanceActionTypeVariant(decision.type)">
+                  {{ resolveGovernanceActionTypeLabel(decision.type) }}
+                </BaseBadge>
+                <BaseBadge size="sm" :variant="resolveVoteOutcomeVariant(getDecisionOutcome(decision))">
+                  {{ resolveVoteOutcomeLabel(getDecisionOutcome(decision)) }}
+                </BaseBadge>
+                <BaseButton size="sm" variant="danger" @click="removeDecision(decision.id)">Remove</BaseButton>
               </div>
-            </BaseCard>
-          </div>
+            </header>
+
+            <label class="decision-card__field">
+              <span>Decision Type</span>
+              <select
+                :value="decision.type"
+                @change="setDecisionType(decision.id, $event.target.value)"
+              >
+                <option value="recommendation">Recommendation</option>
+                <option value="resolution">Resolution</option>
+              </select>
+            </label>
+
+            <BaseInput
+              :model-value="decision.text"
+              label="Decision Text"
+              placeholder="Enter decision details"
+              @update:model-value="setDecisionText(decision.id, $event)"
+            />
+
+            <div class="decision-votes__header">
+              <h6>Individual Votes</h6>
+            </div>
+
+            <div class="decision-votes">
+              <div
+                v-for="user in sortedUsers"
+                :key="`${decision.id}-${user.id}`"
+                class="decision-votes__row"
+              >
+                <span>{{ user.name }}</span>
+
+                <select
+                  :value="decision.votesByUserId[user.id]"
+                  @change="setDecisionVote(decision.id, user.id, $event.target.value)"
+                >
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                  <option value="abstain">Abstain</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="decision-summary">
+              <span class="decision-summary__label">Vote Totals</span>
+
+              <div class="decision-summary__badges">
+                <BaseBadge variant="success">Yes: {{ getDecisionVoteCounts(decision).yes }}</BaseBadge>
+                <BaseBadge variant="danger">No: {{ getDecisionVoteCounts(decision).no }}</BaseBadge>
+                <BaseBadge variant="neutral">Abstain: {{ getDecisionVoteCounts(decision).abstain }}</BaseBadge>
+                <BaseBadge :variant="resolveVoteOutcomeVariant(getDecisionOutcome(decision))">
+                  Outcome: {{ resolveVoteOutcomeLabel(getDecisionOutcome(decision)) }}
+                </BaseBadge>
+              </div>
+            </div>
+          </BaseCard>
         </div>
       </div>
 
       <template #footer>
         <BaseButton variant="ghost" @click="closeMinutesModal">Cancel</BaseButton>
-        <BaseButton
-          :disabled="!canEditMeeting && !canManageDecisions"
-          @click="saveMinutesAndDecisions"
-        >
-          Save
-        </BaseButton>
+        <BaseButton @click="saveMinutesAndDecisions">Save</BaseButton>
       </template>
     </BaseModal>
 

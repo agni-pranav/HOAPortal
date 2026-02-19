@@ -6,15 +6,11 @@ import BaseCard from '../components/ui/BaseCard.vue'
 import BaseModal from '../components/ui/BaseModal.vue'
 import RowActionMenu from '../components/ui/RowActionMenu.vue'
 import BaseTable from '../components/ui/BaseTable.vue'
-import { useTenantStore } from '../state/tenantStore'
-import { usePermission } from '../composables/usePermission'
+import { createInitialUsers } from '../mock/mockUsersData'
+import { createInitialRoles } from '../mock/rolesData'
 
-const { currentCommunityData } = useTenantStore()
-const { canPerform } = usePermission()
-
-const communityData = computed(() => currentCommunityData.value)
-const users = computed(() => communityData.value?.users || [])
-const availableRoles = computed(() => communityData.value?.roles || [])
+const users = ref(createInitialUsers())
+const availableRoles = ref(createInitialRoles())
 
 const isRoleModalOpen = ref(false)
 const selectedUserId = ref('')
@@ -48,18 +44,8 @@ const roleModalTitle = computed(() =>
   selectedUser.value ? `Change Role — ${selectedUser.value.name}` : 'Change Role'
 )
 
-const canManageUsers = computed(
-  () => canPerform('user-management', 'edit') || canPerform('user-management', 'create')
-)
-
 function updateUserById(userId, updater) {
-  if (!communityData.value) {
-    return
-  }
-
-  communityData.value.users = communityData.value.users.map((user) =>
-    user.id === userId ? updater(user) : user
-  )
+  users.value = users.value.map((user) => (user.id === userId ? updater(user) : user))
 }
 
 function resolveRoleName(roleId) {
@@ -71,10 +57,6 @@ function resolveRoleName(roleId) {
 }
 
 function openChangeRoleModal(user) {
-  if (!canManageUsers.value) {
-    return
-  }
-
   selectedUserId.value = user.id
   selectedRoleId.value = user.assignedRoleId || ''
   isRoleModalOpen.value = true
@@ -87,10 +69,6 @@ function closeChangeRoleModal() {
 }
 
 function saveRoleAssignment() {
-  if (!canManageUsers.value) {
-    return
-  }
-
   if (!selectedUserId.value) {
     return
   }
@@ -104,10 +82,6 @@ function saveRoleAssignment() {
 }
 
 function removeRole(userId) {
-  if (!canManageUsers.value) {
-    return
-  }
-
   updateUserById(userId, (user) => ({
     ...user,
     assignedRoleId: null
@@ -115,10 +89,6 @@ function removeRole(userId) {
 }
 
 function setUserActiveState(userId, nextIsActive) {
-  if (!canManageUsers.value) {
-    return
-  }
-
   updateUserById(userId, (user) => ({
     ...user,
     status: nextIsActive ? 'Active' : 'Inactive'
@@ -182,7 +152,7 @@ function handleUserAction(actionKey, user) {
         </template>
 
         <template #cell-actions="{ row }">
-          <div v-if="canManageUsers" class="table-action-cell">
+          <div class="table-action-cell">
             <RowActionMenu
               :actions="getUserActions(row)"
               label="User row actions"

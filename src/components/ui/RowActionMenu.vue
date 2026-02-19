@@ -1,5 +1,5 @@
 <script setup>
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import BaseIcon from './BaseIcon.vue'
 
 const props = defineProps({
@@ -17,19 +17,12 @@ const emit = defineEmits(['select'])
 
 const isOpen = ref(false)
 const rootRef = ref(null)
-const triggerRef = ref(null)
-const panelRef = ref(null)
-const panelStyles = ref({})
 
 const gearIconPath =
   'M12 9a3 3 0 1 0 0 6a3 3 0 0 0 0-6Zm7.4 6a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'
 
 function toggleMenu() {
   isOpen.value = !isOpen.value
-
-  if (isOpen.value) {
-    nextTick(updatePanelPosition)
-  }
 }
 
 function closeMenu() {
@@ -61,52 +54,14 @@ function handleEscape(event) {
   }
 }
 
-function updatePanelPosition() {
-  if (!triggerRef.value || !panelRef.value) {
-    return
-  }
-
-  const triggerRect = triggerRef.value.getBoundingClientRect()
-  const panelRect = panelRef.value.getBoundingClientRect()
-  const margin = 8
-  const offset = 6
-
-  let left = triggerRect.right - panelRect.width
-  if (left < margin) {
-    left = margin
-  }
-
-  let top = triggerRect.bottom + offset
-  if (top + panelRect.height > window.innerHeight - margin) {
-    top = Math.max(margin, triggerRect.top - panelRect.height - offset)
-  }
-
-  panelStyles.value = {
-    position: 'fixed',
-    top: `${top}px`,
-    left: `${left}px`,
-    zIndex: 2000
-  }
-}
-
-function handleViewportChange() {
-  if (isOpen.value) {
-    updatePanelPosition()
-  }
-}
-
 onMounted(() => {
   window.addEventListener('mousedown', handleOutsideClick)
   window.addEventListener('keydown', handleEscape)
-  window.addEventListener('resize', handleViewportChange)
-  window.addEventListener('scroll', handleViewportChange, true)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('mousedown', handleOutsideClick)
   window.removeEventListener('keydown', handleEscape)
-  window.removeEventListener('resize', handleViewportChange)
-  window.removeEventListener('scroll', handleViewportChange, true)
 })
 </script>
 
@@ -118,18 +73,11 @@ onBeforeUnmount(() => {
       :aria-label="label"
       :aria-expanded="isOpen ? 'true' : 'false'"
       @click="toggleMenu"
-      ref="triggerRef"
     >
       <BaseIcon :path="gearIconPath" />
     </button>
 
-    <div
-      v-if="isOpen"
-      ref="panelRef"
-      class="row-action-menu__panel"
-      role="menu"
-      :style="panelStyles"
-    >
+    <div v-if="isOpen" class="row-action-menu__panel" role="menu">
       <button
         v-for="action in actions"
         :key="action.key"
@@ -182,6 +130,9 @@ onBeforeUnmount(() => {
 }
 
 .row-action-menu__panel {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
   min-width: calc(var(--space-2xl) * 1.7);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);

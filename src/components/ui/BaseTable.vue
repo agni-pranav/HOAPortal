@@ -47,15 +47,13 @@ defineProps({
   overflow-x: auto;
   overflow-y: visible;
   position: relative;
-  scrollbar-gutter: stable;
 }
 
 .table {
-  width: max-content;
-  min-width: 100%;
+  width: 100%;
   border-collapse: collapse;
-  min-width: var(--table-min-width, 520px);
-  table-layout: auto;
+  min-width: 460px;
+  table-layout: fixed;
 }
 
 .table th,
@@ -63,7 +61,6 @@ defineProps({
   padding: calc(var(--space-sm) * 1.4) calc(var(--space-sm) * 1.2);
   border-bottom: 1px solid var(--color-border-default);
   font-size: 0.79rem;
-  white-space: nowrap;
 }
 
 .table th {
@@ -72,6 +69,9 @@ defineProps({
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table td {

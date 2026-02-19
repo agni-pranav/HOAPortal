@@ -8,17 +8,17 @@ import BaseModal from '../components/ui/BaseModal.vue'
 import RowActionMenu from '../components/ui/RowActionMenu.vue'
 import BaseTable from '../components/ui/BaseTable.vue'
 import BaseToggle from '../components/ui/BaseToggle.vue'
-import { committeeFrequencyOptions, normalizeCommittee } from '../mock/committeesData'
-import { useTenantStore } from '../state/tenantStore'
-import { usePermission } from '../composables/usePermission'
+import {
+  committeeFrequencyOptions,
+  createInitialCommittees,
+  normalizeCommittee
+} from '../mock/committeesData'
+import { createInitialRoles } from '../mock/rolesData'
+import { createInitialUsers } from '../mock/mockUsersData'
 
-const { currentCommunityData } = useTenantStore()
-const { canView, canPerform } = usePermission()
-
-const communityData = computed(() => currentCommunityData.value)
-const committees = computed(() => communityData.value?.committees || [])
-const users = computed(() => communityData.value?.users || [])
-const roles = computed(() => communityData.value?.roles || [])
+const committees = ref(createInitialCommittees())
+const users = ref(createInitialUsers())
+const roles = ref(createInitialRoles())
 
 const isCommitteeModalOpen = ref(false)
 const isMembersModalOpen = ref(false)
@@ -52,7 +52,6 @@ const roleNameById = computed(() => {
 
 const committeeRows = computed(() =>
   [...committees.value]
-    .filter((committee) => canView('committees', { committeeId: committee.id }))
     .sort((firstCommittee, secondCommittee) => firstCommittee.name.localeCompare(secondCommittee.name))
     .map((committee) => ({
       ...committee,
@@ -79,12 +78,6 @@ const committeeModalTitle = computed(() =>
 )
 
 const canSaveCommittee = computed(() => committeeForm.value.name.trim().length > 0)
-const canCreateCommittees = computed(() => canPerform('committees', 'create'))
-const canEditCommittees = computed(() => canPerform('committees', 'edit'))
-const canDeleteCommittees = computed(() => canPerform('committees', 'delete'))
-const canManageCommittees = computed(
-  () => canCreateCommittees.value || canEditCommittees.value || canDeleteCommittees.value
-)
 
 const selectedMembersCount = computed(() =>
   Object.values(membersDraft.value).filter(Boolean).length
@@ -122,11 +115,7 @@ function getTodayDate() {
 }
 
 function updateCommitteeById(committeeId, updater) {
-  if (!communityData.value) {
-    return
-  }
-
-  communityData.value.committees = communityData.value.committees.map((committee) =>
+  committees.value = committees.value.map((committee) =>
     committee.id === committeeId ? normalizeCommittee(updater(committee)) : committee
   )
 }
@@ -152,10 +141,6 @@ function resolveUserStatusVariant(status) {
 }
 
 function openCreateCommitteeModal() {
-  if (!canCreateCommittees.value) {
-    return
-  }
-
   mode.value = 'create'
   editingCommitteeId.value = ''
   committeeForm.value = createBlankCommitteeForm()
@@ -163,10 +148,6 @@ function openCreateCommitteeModal() {
 }
 
 function openEditCommitteeModal(committee) {
-  if (!canEditCommittees.value) {
-    return
-  }
-
   mode.value = 'edit'
   editingCommitteeId.value = committee.id
   committeeForm.value = {
@@ -183,14 +164,6 @@ function closeCommitteeModal() {
 }
 
 function saveCommittee() {
-  if (mode.value === 'edit' && !canEditCommittees.value) {
-    return
-  }
-
-  if (mode.value !== 'edit' && !canCreateCommittees.value) {
-    return
-  }
-
   if (!canSaveCommittee.value) {
     return
   }
@@ -209,17 +182,13 @@ function saveCommittee() {
       ...payload
     }))
   } else {
-    if (!communityData.value) {
-      return
-    }
-
-    communityData.value.committees = [
+    committees.value = [
       normalizeCommittee({
         id: createCommitteeId(payload.name),
         ...payload,
         memberIds: []
       }),
-      ...communityData.value.committees
+      ...committees.value
     ]
   }
 
@@ -227,10 +196,6 @@ function saveCommittee() {
 }
 
 function openMembersModal(committee) {
-  if (!canEditCommittees.value) {
-    return
-  }
-
   membersCommitteeId.value = committee.id
 
   const nextDraft = {}
@@ -256,10 +221,6 @@ function setMemberSelection(userId, isSelected) {
 }
 
 function saveMembers() {
-  if (!canEditCommittees.value) {
-    return
-  }
-
   if (!membersCommitteeId.value) {
     return
   }
@@ -278,48 +239,31 @@ function saveMembers() {
 }
 
 function promptDeleteCommittee(committee) {
-  if (!canDeleteCommittees.value) {
-    return
-  }
-
   committeePendingDelete.value = committee
   isDeleteModalOpen.value = true
 }
 
 function getCommitteeActions() {
-  const actions = []
-
-  if (canEditCommittees.value) {
-    actions.push({ key: 'edit', label: 'Edit' })
-    actions.push({ key: 'members', label: 'Manage Members' })
-  }
-
-  if (canDeleteCommittees.value) {
-    actions.push({ key: 'delete', label: 'Delete', variant: 'danger' })
-  }
-
-  return actions
+  return [
+    { key: 'edit', label: 'Edit' },
+    { key: 'members', label: 'Manage Members' },
+    { key: 'delete', label: 'Delete', variant: 'danger' }
+  ]
 }
 
 function handleCommitteeAction(actionKey, committee) {
   if (actionKey === 'edit') {
-    if (canEditCommittees.value) {
-      openEditCommitteeModal(committee)
-    }
+    openEditCommitteeModal(committee)
     return
   }
 
   if (actionKey === 'members') {
-    if (canEditCommittees.value) {
-      openMembersModal(committee)
-    }
+    openMembersModal(committee)
     return
   }
 
   if (actionKey === 'delete') {
-    if (canDeleteCommittees.value) {
-      promptDeleteCommittee(committee)
-    }
+    promptDeleteCommittee(committee)
   }
 }
 
@@ -333,17 +277,7 @@ function confirmDeleteCommittee() {
     return
   }
 
-  if (!canDeleteCommittees.value) {
-    return
-  }
-
-  if (!communityData.value) {
-    return
-  }
-
-  communityData.value.committees = communityData.value.committees.filter(
-    (committee) => committee.id !== committeePendingDelete.value.id
-  )
+  committees.value = committees.value.filter((committee) => committee.id !== committeePendingDelete.value.id)
   closeDeleteModal()
 }
 </script>
@@ -355,9 +289,7 @@ function confirmDeleteCommittee() {
         <h1>Committees</h1>
         <p>Manage HOA committees and membership</p>
       </div>
-      <BaseButton :disabled="!canCreateCommittees" @click="openCreateCommitteeModal">
-        + Create Committee
-      </BaseButton>
+      <BaseButton @click="openCreateCommitteeModal">+ Create Committee</BaseButton>
     </header>
 
     <BaseCard>
@@ -373,7 +305,7 @@ function confirmDeleteCommittee() {
         </template>
 
         <template #cell-actions="{ row }">
-          <div v-if="canManageCommittees" class="table-action-cell">
+          <div class="table-action-cell">
             <RowActionMenu
               :actions="getCommitteeActions(row)"
               label="Committee row actions"
