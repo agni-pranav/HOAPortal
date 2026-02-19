@@ -3,11 +3,14 @@ import { computed } from 'vue'
 import BaseBadge from '../components/ui/BaseBadge.vue'
 import BaseButton from '../components/ui/BaseButton.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
-import { createInitialCommittees } from '../mock/committeesData'
-import { createInitialMeetings } from '../mock/mockMeetingsData'
+import { useTenantStore } from '../state/tenantStore'
+import { usePermission } from '../composables/usePermission'
 
-const committees = createInitialCommittees()
-const meetings = createInitialMeetings()
+const { currentCommunityData } = useTenantStore()
+const { canView, canPerform, isAdmin, isBoard } = usePermission()
+
+const committees = computed(() => currentCommunityData.value?.committees || [])
+const meetings = computed(() => currentCommunityData.value?.meetings || [])
 
 const quickGovernanceActions = [
   {
@@ -58,16 +61,63 @@ const temporaryDocuments = [
   }
 ]
 
-const committeeNameById = committees.reduce((accumulator, committee) => {
-  accumulator[committee.id] = committee.name
-  return accumulator
-}, {})
+const committeeNameById = computed(() =>
+  committees.value.reduce((accumulator, committee) => {
+    accumulator[committee.id] = committee.name
+    return accumulator
+  }, {})
+)
+
+const canCreateMeeting = computed(() => canPerform('meetings', 'create'))
+const canCreateCommittee = computed(() => canPerform('committees', 'create'))
+const canUploadNewsletter = computed(
+  () => canPerform('communications', 'create') || canPerform('communications', 'publish')
+)
+
+const visibleQuickActions = computed(() =>
+  quickGovernanceActions.filter((action) => {
+    if (action.id === 'schedule-meeting') {
+      return canCreateMeeting.value
+    }
+    if (action.id === 'create-committee') {
+      return canCreateCommittee.value
+    }
+    if (action.id === 'upload-newsletter') {
+      return canUploadNewsletter.value
+    }
+    return false
+  })
+)
+
+function isMeetingVisible(meeting) {
+  if (!meeting) {
+    return false
+  }
+
+  const committeeId = meeting.type === 'committee' ? meeting.committeeId : ''
+  if (!canView('meetings', { committeeId })) {
+    return false
+  }
+
+  if (!isAdmin.value && !isBoard.value && meeting.visibility === 'board') {
+    return false
+  }
+
+  return true
+}
 
 const upcomingMeetings = computed(() => {
   const now = new Date()
 
-  return meetings
+  if (!canView('meetings')) {
+    return []
+  }
+
+  return meetings.value
     .filter((meeting) => {
+      if (!isMeetingVisible(meeting)) {
+        return false
+      }
       const scheduledDate = parseDate(meeting.scheduledAt)
       return scheduledDate && scheduledDate >= now
     })
@@ -85,14 +135,22 @@ const upcomingMeetingsCountIn30Days = computed(() => {
   const inThirtyDays = new Date(now)
   inThirtyDays.setDate(now.getDate() + 30)
 
-  return meetings.filter((meeting) => {
+  if (!canView('meetings')) {
+    return 0
+  }
+
+  return meetings.value.filter((meeting) => {
+    if (!isMeetingVisible(meeting)) {
+      return false
+    }
     const scheduledDate = parseDate(meeting.scheduledAt)
     return scheduledDate && scheduledDate >= now && scheduledDate <= inThirtyDays
   }).length
 })
 
 const recentDecisions = computed(() =>
-  meetings
+  canView('motions')
+    ? meetings.value
     .flatMap((meeting) =>
       (meeting.decisions || []).map((decision) => {
         const voteCounts = (decision.votes || []).reduce(
@@ -116,29 +174,36 @@ const recentDecisions = computed(() =>
     )
     .sort((firstDecision, secondDecision) => new Date(secondDecision.scheduledAt) - new Date(firstDecision.scheduledAt))
     .slice(0, 5)
+    : []
 )
 
 const openDecisionsCount = computed(() =>
-  meetings.reduce((accumulator, meeting) => accumulator + (meeting.decisions?.length || 0), 0)
+  canView('motions')
+    ? meetings.value.reduce((accumulator, meeting) => accumulator + (meeting.decisions?.length || 0), 0)
+    : 0
 )
 
 const boardOnlyDocumentsCount = computed(() =>
-  temporaryDocuments.filter((document) => document.visibility === 'board').length
+  canView('documents')
+    ? temporaryDocuments.filter((document) => document.visibility === 'board').length
+    : 0
 )
 
 const recentDocuments = computed(() =>
-  [...temporaryDocuments]
+  canView('documents')
+    ? [...temporaryDocuments]
     .sort((firstDocument, secondDocument) => new Date(secondDocument.date) - new Date(firstDocument.date))
     .map((document) => ({
       ...document,
       dateLabel: formatDate(document.date)
     }))
+    : []
 )
 
 const governanceSummaryItems = computed(() => [
   {
     label: 'Total Committees',
-    value: committees.length,
+    value: canView('committees') ? committees.value.length : 0,
     hint: 'Active governance groups'
   },
   {
@@ -200,7 +265,7 @@ function resolveCommitteeLabel(meeting) {
     return 'Unassigned Committee'
   }
 
-  return committeeNameById[meeting.committeeId] || 'Committee'
+  return committeeNameById.value[meeting.committeeId] || 'Committee'
 }
 
 function resolveMeetingTypeLabel(type) {
@@ -327,7 +392,7 @@ function resolveVisibilityVariant(visibility) {
 
       <div class="quick-actions-grid">
         <BaseButton
-          v-for="action in quickGovernanceActions"
+          v-for="action in visibleQuickActions"
           :key="action.id"
           variant="secondary"
           size="lg"

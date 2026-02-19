@@ -1,5 +1,13 @@
 <script setup>
+import { computed } from 'vue'
 import BaseIcon from '../ui/BaseIcon.vue'
+import { useTenantStore } from '../../state/tenantStore'
+
+const { activeCommunity, state } = useTenantStore()
+
+const brandTitle = computed(() =>
+  state.isSaasAdmin ? 'SaaS Platform' : activeCommunity.value?.name || 'Community'
+)
 
 defineProps({
   navigationItems: {
@@ -12,13 +20,13 @@ defineProps({
   }
 })
 
-defineEmits(['navigate'])
+defineEmits(['navigate', 'coming-soon'])
 </script>
 
 <template>
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <h1>Wedgewood Cluster</h1>
+      <h1>{{ brandTitle }}</h1>
       <p>HOA Management</p>
     </div>
 
@@ -28,8 +36,9 @@ defineEmits(['navigate'])
         :key="item.id"
         type="button"
         class="sidebar__nav-item"
-        :class="{ 'is-active': activeView === item.id }"
-        @click="$emit('navigate', item.id)"
+        :class="{ 'is-active': activeView === item.id, 'is-disabled': item.disabled }"
+        :aria-disabled="item.disabled"
+        @click="item.disabled ? $emit('coming-soon', item) : $emit('navigate', item.id)"
       >
         <BaseIcon :path="item.icon" />
         <span>{{ item.label }}</span>
@@ -111,6 +120,16 @@ defineEmits(['navigate'])
   background: var(--color-accent-soft);
   color: var(--color-accent);
   border-right-color: var(--color-accent);
+}
+
+.sidebar__nav-item.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sidebar__nav-item.is-disabled:hover {
+  background: transparent;
+  color: var(--color-text-nav);
 }
 
 @media (max-width: 980px) {

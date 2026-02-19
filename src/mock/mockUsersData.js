@@ -10,14 +10,14 @@ const seededUsers = [
     id: 'f2e73d53-39f3-4946-8ce0-1a4a7a18caec',
     name: 'Priya Bhatt',
     email: 'priya.bhatt@wedgewoodhoa.org',
-    assignedRoleId: 'c4d8bbf3-f87e-4f57-a820-8ee58af17450',
+    assignedRoleId: '84e9b4f4-34f5-458c-b9b3-e8a6c22d1891',
     status: 'Active'
   },
   {
     id: '7b847e0e-4ed4-4cb1-bb0f-72c81b3226c0',
     name: 'Marcus Lee',
     email: 'marcus.lee@wedgewoodhoa.org',
-    assignedRoleId: '48f729b8-44c8-42f6-9935-3f7f4f247f05',
+    assignedRoleId: 'ba35f296-f0cf-4602-af83-ea1e9ec8da07',
     status: 'Inactive'
   },
   {
