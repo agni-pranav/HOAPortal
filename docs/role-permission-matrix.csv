@@ -1,0 +1,39 @@
+Permission,Board Member,Member
+Dashboard - View,Yes,Yes
+Calendar - View Events,Yes,Yes
+Calendar - Create Event,Yes,No
+Calendar - Edit Event,Yes,No
+Calendar - Delete Event,Yes,No
+Meetings - View,Yes,Yes
+Meetings - Create,Yes,No
+Meetings - Edit,Yes,No
+Meetings - Delete,Yes,No
+Meetings - Attendance,Yes,No
+Meetings - Minutes,Yes,No
+Motions - View,Yes,No
+Motions - Create,Yes,No
+Motions - Vote,Yes,No
+Motions - View Results,Yes,No
+Committees - View,Yes,No
+Committees - Create,Yes,No
+Committees - Edit,Yes,No
+Committees - Delete,Yes,No
+Documents - View,Yes,No
+Documents - Upload,Yes,No
+Documents - Delete,Yes,No
+Newsletters - View,Yes,No
+Newsletters - Create/Upload,Yes,No
+Vendors - View,Yes,No
+Vendors - Manage,Yes,No
+DRB Submissions - View,Yes,No
+DRB Submissions - Manage,Yes,No
+Complaints/Requests - View,Yes,No
+Complaints/Requests - Manage,Yes,No
+User Management - View,Yes,No
+User Management - Manage,Yes,No
+Roles & Permissions - View,Yes,No
+Roles & Permissions - Manage,Yes,No
+Metadata Setup - View,Yes,No
+Metadata Setup - Manage,Yes,No
+Settings - View,Yes,No
+Settings - Manage,Yes,No

@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import BaseBadge from '../ui/BaseBadge.vue'
+import BaseButton from '../ui/BaseButton.vue'
 import BaseIcon from '../ui/BaseIcon.vue'
-import BaseToggle from '../ui/BaseToggle.vue'
 import { useTenantStore } from '../../state/tenantStore'
 
 const props = defineProps({
@@ -16,28 +16,26 @@ const {
   state,
   activeCommunity,
   viewModeLabel,
-  toggleRole,
-  setActiveCommunity,
-  setSaasAdmin
+  sessionUser,
+  returnToPlatform,
+  logout
 } = useTenantStore()
 
-const communitySelection = computed({
-  get: () => state.activeCommunityId,
-  set: (value) => setActiveCommunity(value)
+const profileName = computed(() => sessionUser.value?.name || 'User')
+const profileInitials = computed(() => {
+  const name = profileName.value.trim()
+  if (!name) {
+    return 'U'
+  }
+  const parts = name.split(' ').filter(Boolean)
+  const initials = parts.slice(0, 2).map((part) => part[0].toUpperCase())
+  return initials.join('') || 'U'
 })
 
-const isSaasAdminView = computed({
-  get: () => state.isSaasAdmin,
-  set: (value) => setSaasAdmin(value)
-})
-
-const roleCheckboxes = [
-  { key: 'Board', label: 'Board Member View' },
-  { key: 'Member', label: 'Member View' }
-]
-
-const showRoleSimulator = computed(() => !state.isSaasAdmin)
 const isPlatformView = computed(() => state.isSaasAdmin)
+const canReturnToPlatform = computed(
+  () => sessionUser.value?.role === 'platform-admin' && !state.isSaasAdmin
+)
 const displayTitle = computed(() =>
   state.isSaasAdmin ? 'SaaS Platform Administration' : props.title
 )
@@ -71,47 +69,28 @@ const displayTitle = computed(() =>
         </div>
       </div>
 
-      <div class="topbar__switchers">
-        <label class="topbar__field">
-          <span>Community</span>
-          <select v-model="communitySelection">
-            <option v-for="community in state.communities" :key="community.id" :value="community.id">
-              {{ community.name }}
-            </option>
-          </select>
-        </label>
-
-        <label class="topbar__toggle">
-          <span>SaaS Super Admin</span>
-          <BaseToggle :model-value="isSaasAdminView" @update:model-value="isSaasAdminView = $event" />
-        </label>
-
-        <div v-if="showRoleSimulator" class="topbar__roles">
-          <span>Role Simulation</span>
-          <div class="topbar__role-options">
-            <label v-for="role in roleCheckboxes" :key="role.key" class="topbar__role-option">
-              <input
-                type="checkbox"
-                :checked="state.activeRoles.includes(role.key)"
-                @change="toggleRole(role.key)"
-              />
-              <span>{{ role.label }}</span>
-            </label>
-          </div>
+        <div v-if="canReturnToPlatform" class="topbar__switchers">
+          <BaseButton size="sm" variant="secondary" @click="returnToPlatform">
+            Back to Platform
+          </BaseButton>
         </div>
       </div>
-    </div>
 
     <div class="topbar__profile-wrap">
       <button type="button" class="topbar__icon-button" aria-label="Notifications">
         <BaseIcon path="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0" />
       </button>
       <div class="topbar__identity">
-        <p class="topbar__name">John Smith</p>
+        <p class="topbar__name">{{ profileName }}</p>
         <BaseBadge variant="info" size="md">{{ viewModeLabel }}</BaseBadge>
       </div>
-      <div class="topbar__avatar" aria-hidden="true">JS</div>
-      <button type="button" class="topbar__icon-button topbar__icon-button--logout" aria-label="Logout">
+      <div class="topbar__avatar" aria-hidden="true">{{ profileInitials }}</div>
+      <button
+        type="button"
+        class="topbar__icon-button topbar__icon-button--logout"
+        aria-label="Logout"
+        @click="logout"
+      >
         <BaseIcon
           path="M1 1L8 1V2L2 2L2 13H8V14H1L1 1ZM10.8536 4.14645L14.1932 7.48614L10.8674 11.0891L10.1326 10.4109L12.358 8L4 8V7L12.2929 7L10.1464 4.85355L10.8536 4.14645Z"
         />

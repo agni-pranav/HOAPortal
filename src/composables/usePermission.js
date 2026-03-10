@@ -89,6 +89,10 @@ export function usePermission() {
   const isAdmin = computed(() => isCommunityAdmin.value)
 
   function canView(moduleKey, options = {}) {
+    if (!state.isAuthenticated) {
+      return false
+    }
+
     if (state.isSaasAdmin) {
       return false
     }
@@ -127,6 +131,10 @@ export function usePermission() {
   }
 
   function canPerform(moduleKey, actionKey, options = {}) {
+    if (!state.isAuthenticated) {
+      return false
+    }
+
     if (state.isSaasAdmin) {
       return false
     }

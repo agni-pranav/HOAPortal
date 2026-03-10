@@ -146,7 +146,39 @@ function createCommunityData() {
   }
 }
 
+const authUsers = [
+  {
+    id: 'platform-admin',
+    name: 'Platform Admin',
+    role: 'platform-admin',
+    tenantId: null
+  },
+  {
+    id: 'community-admin-wedgewood',
+    name: 'Alicia Monroe',
+    role: 'community-admin',
+    tenantId: 'wedgewood'
+  },
+  {
+    id: 'board-wedgewood',
+    name: 'John Smith',
+    role: 'board',
+    tenantId: 'wedgewood',
+    userId: 'a7dc26d7-8f7d-4f4a-a316-7c53e7c7e5d4'
+  },
+  {
+    id: 'member-wedgewood',
+    name: 'Ana Reynolds',
+    role: 'member',
+    tenantId: 'wedgewood',
+    userId: '4f8915e7-06b8-43b4-978a-1ebadf8336dd'
+  }
+]
+
 const state = reactive({
+  isAuthenticated: false,
+  sessionUserId: '',
+  sessionRole: '',
   isSaasAdmin: false,
   activeCommunityId: communitySeeds[0]?.id || '',
   activeRoles: [],
@@ -166,6 +198,24 @@ const activeCommunity = computed(() =>
 )
 
 const currentCommunityData = computed(() => state.communityData[state.activeCommunityId])
+
+const sessionUser = computed(
+  () => authUsers.find((user) => user.id === state.sessionUserId) || null
+)
+
+const authUserOptions = computed(() =>
+  authUsers.map((user) => ({
+    ...user,
+    label:
+      user.role === 'platform-admin'
+        ? 'Platform Admin'
+        : user.role === 'community-admin'
+          ? `${user.name} — Community Admin`
+          : user.role === 'board'
+            ? `${user.name} — Board Member`
+            : `${user.name} — Member`
+  }))
+)
 
 const currentUser = computed(() => {
   const users = currentCommunityData.value?.users || []
@@ -189,7 +239,9 @@ const currentUserCommitteeIds = computed(() => {
 const isBoard = computed(() => state.activeRoles.includes('Board'))
 const isMember = computed(() => state.activeRoles.includes('Member'))
 
-const isCommunityAdmin = computed(() => !state.isSaasAdmin && state.activeRoles.length === 0)
+const isCommunityAdmin = computed(
+  () => state.isAuthenticated && !state.isSaasAdmin && state.activeRoles.length === 0
+)
 
 const viewModeLabel = computed(() => {
   if (state.isSaasAdmin) {
@@ -215,7 +267,7 @@ function resetRoleSimulation() {
 }
 
 function toggleRole(role) {
-  if (!role || state.isSaasAdmin) {
+  if (!role || state.isSaasAdmin || !state.isAuthenticated) {
     return
   }
 
@@ -227,6 +279,10 @@ function toggleRole(role) {
 }
 
 function setActiveCommunity(nextCommunityId) {
+  if (!state.isAuthenticated) {
+    return
+  }
+
   if (!nextCommunityId || nextCommunityId === state.activeCommunityId) {
     return
   }
@@ -237,6 +293,10 @@ function setActiveCommunity(nextCommunityId) {
 }
 
 function setSaasAdmin(nextValue) {
+  if (!state.isAuthenticated) {
+    return
+  }
+
   state.isSaasAdmin = Boolean(nextValue)
   resetRoleSimulation()
 }
@@ -288,13 +348,68 @@ function removeCommunity(communityId) {
 }
 
 function switchToCommunity(communityId) {
+  if (!state.isAuthenticated || state.sessionRole !== 'platform-admin') {
+    return
+  }
+
   setSaasAdmin(false)
   setActiveCommunity(communityId)
+}
+
+function returnToPlatform() {
+  if (!state.isAuthenticated || state.sessionRole !== 'platform-admin') {
+    return
+  }
+
+  setSaasAdmin(true)
+}
+
+function loginAs(userId) {
+  const user = authUsers.find((entry) => entry.id === userId)
+  if (!user) {
+    return
+  }
+
+  state.isAuthenticated = true
+  state.sessionUserId = user.id
+  state.sessionRole = user.role
+
+  if (user.tenantId) {
+    state.activeCommunityId = user.tenantId
+  }
+
+  state.isSaasAdmin = user.role === 'platform-admin'
+  state.activeRoles = []
+
+  if (user.role === 'board') {
+    state.activeRoles = ['Board']
+  }
+
+  if (user.role === 'member') {
+    state.activeRoles = ['Member']
+  }
+
+  const fallbackUserId =
+    state.communityData[state.activeCommunityId]?.users?.[0]?.id || ''
+  state.currentUserId = user.userId || fallbackUserId
+}
+
+function logout() {
+  state.isAuthenticated = false
+  state.sessionUserId = ''
+  state.sessionRole = ''
+  state.isSaasAdmin = false
+  state.activeRoles = []
+  state.activeCommunityId = communitySeeds[0]?.id || ''
+  state.currentUserId =
+    state.communityData[state.activeCommunityId]?.users?.[0]?.id || ''
 }
 
 export function useTenantStore() {
   return {
     state,
+    authUserOptions,
+    sessionUser,
     activeCommunity,
     currentCommunityData,
     currentUser,
@@ -310,6 +425,9 @@ export function useTenantStore() {
     updateCommunityById,
     addCommunity,
     removeCommunity,
-    switchToCommunity
+    switchToCommunity,
+    returnToPlatform,
+    loginAs,
+    logout
   }
 }

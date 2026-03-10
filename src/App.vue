@@ -12,6 +12,7 @@ import NewslettersView from './views/NewslettersView.vue'
 import CommitteesView from './views/CommitteesView.vue'
 import PlatformAdminView from './views/PlatformAdminView.vue'
 import MetadataView from './views/MetadataView.vue'
+import LoginView from './views/LoginView.vue'
 import BaseButton from './components/ui/BaseButton.vue'
 import BaseModal from './components/ui/BaseModal.vue'
 import { navigationItems, platformNavigationItems } from './mock/navigationData'
@@ -19,10 +20,11 @@ import { useTenantStore } from './state/tenantStore'
 import { usePermission } from './composables/usePermission'
 
 const activeView = ref('dashboard')
-const { state } = useTenantStore()
+const { state, authUserOptions, loginAs } = useTenantStore()
 const { canView, isAdmin } = usePermission()
 const isComingSoonOpen = ref(false)
 const comingSoonLabel = ref('Module')
+const isAuthenticated = computed(() => state.isAuthenticated)
 
 const navModuleMap = {
   dashboard: 'dashboard',
@@ -66,6 +68,9 @@ watch(
 watch(
   () => state.isSaasAdmin,
   (isPlatform) => {
+    if (!state.isAuthenticated) {
+      return
+    }
     activeView.value = isPlatform ? 'platform-communities' : 'dashboard'
   }
 )
@@ -73,6 +78,10 @@ watch(
 watch(
   () => activeView.value,
   (nextView) => {
+    if (!state.isAuthenticated) {
+      return
+    }
+
     if (state.isSaasAdmin) {
       return
     }
@@ -81,6 +90,19 @@ watch(
       activeView.value = 'dashboard'
     }
   }
+)
+
+watch(
+  () => state.isAuthenticated,
+  (isAuthed) => {
+    if (!isAuthed) {
+      activeView.value = 'dashboard'
+      return
+    }
+
+    activeView.value = state.isSaasAdmin ? 'platform-communities' : 'dashboard'
+  },
+  { immediate: true }
 )
 
 function handleNavigate(itemId) {
@@ -104,7 +126,10 @@ function handleComingSoon(item) {
 </script>
 
 <template>
+  <LoginView v-if="!isAuthenticated" :users="authUserOptions" @login="loginAs" />
+
   <AppShell
+    v-else
     :navigation-items="visibleNavigationItems"
     :active-view="activeView"
     :active-title="activeNavigationItem?.label || 'Dashboard'"
